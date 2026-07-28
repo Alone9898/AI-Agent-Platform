@@ -1,0 +1,28 @@
+[package]
+name = "ai-agent-platform"
+version = "1.0.0"
+description = "AI Agent Desktop Platform"
+authors = ["you"]
+edition = "2021"
+
+[lib]
+name = "ai_agent_platform_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-shell = "2"
+tauri-plugin-single-instance = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-updater = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dirs = "5"
+log = "0.4"
+tokio = { version = "1", features = ["process"] }
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]

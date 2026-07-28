@@ -1,0 +1,55 @@
+# ============================
+# AI Agent Platform - .gitignore
+# ============================
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+nestjs/node_modules/
+
+# Build outputs
+frontend/dist/
+nestjs/dist/
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# Prisma
+nestjs/prisma/*.db
+nestjs/prisma/*.db-journal
+!nestjs/prisma/schema.prisma
+!nestjs/prisma/migrations/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Misc
+.eslintcache
+.cache/
+.temp/
+tmp/
+
+# Tauri updater
+src-tauri/updater.key
