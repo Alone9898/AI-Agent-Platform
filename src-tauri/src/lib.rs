@@ -34,7 +34,6 @@ pub fn run() {
         .on_window_event(|window, event| {
             match event {
                 tauri::WindowEvent::CloseRequested { api, .. } => {
-                    // Hide window instead of closing (minimize to tray)
                     let _ = window.hide();
                     api.prevent_close();
                 }

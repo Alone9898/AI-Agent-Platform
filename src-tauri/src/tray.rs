@@ -5,6 +5,8 @@ use tauri::{
     App, Manager,
 };
 
+use crate::sidecar;
+
 pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
     let show = MenuItemBuilder::with_id("show", "显示窗口").build(app)?;
     let quit = MenuItemBuilder::with_id("quit", "退出").build(app)?;
@@ -44,6 +46,7 @@ pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             "quit" => {
+                sidecar::stop_sidecar();
                 app.exit(0);
             }
             _ => {}
