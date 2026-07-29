@@ -22,11 +22,26 @@ model Agent {
   @@map("agents")
 }
 
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  nickname     String?
+  role         String   @default("admin")
+  avatar       String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
 model Skill {
   id          Int       @id @default(autoincrement())
   name        String
   description String?
+  type        String    @default("prompt")
   prompt      String?
+  tools       String?
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 

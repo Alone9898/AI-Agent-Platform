@@ -33,7 +33,7 @@
         <el-table-column prop="baseUrl" label="Base URL" show-overflow-tooltip min-width="200" />
         <el-table-column label="API Key" width="100">
           <template #default="{ row }">
-            <el-tag v-if="row.apiKeyValue" size="small" type="success" effect="light">已配置</el-tag>
+            <el-tag v-if="row.hasApiKey" size="small" type="success" effect="light">已配置</el-tag>
             <span v-else class="unbound-text">未配置</span>
           </template>
         </el-table-column>
@@ -179,7 +179,7 @@ function openEditDialog(row: any) {
     providerKey: row.providerKey || '',
     modelName: row.modelName,
     baseUrl: row.baseUrl || '',
-    apiKeyValue: row.apiKeyValue || '',
+    apiKeyValue: '',
   }
   dialogVisible.value = true
 }

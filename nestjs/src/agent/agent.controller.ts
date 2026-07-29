@@ -53,7 +53,7 @@ export class AgentController {
   @Post(':id/model')
   bindModel(
     @Param('id', ParseIntPipe) id: number,
-    @Body() body: { modelId: number },
+    @Body() body: { modelId: number | null },
   ) {
     return this.agentService.bindModel(id, body.modelId);
   }

@@ -2,9 +2,6 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { agentApi, skillApi, modelApi, authApi } from '@/api'
 
-// 默认用户（客户端模拟用）
-const DEFAULT_USER = { username: 'admin', password: '123456', nickname: '管理员', role: 'admin' }
-
 export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem('auth_token') || '')
   const user = ref<any>(JSON.parse(localStorage.getItem('auth_user') || 'null'))
@@ -14,55 +11,57 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function login(username: string, password: string) {
-    // TODO: 后端就绪后取消注释，删除模拟逻辑
-    // const { data } = await authApi.login(username, password)
-    // token.value = data.token
-    // user.value = data.user
-    // localStorage.setItem('auth_token', data.token)
-    // localStorage.setItem('auth_user', JSON.stringify(data.user))
-
-    // 客户端模拟
-    if (username === DEFAULT_USER.username && password === DEFAULT_USER.password) {
-      const mockToken = 'mock-jwt-token-' + Date.now()
-      const mockUser = { id: 1, username: DEFAULT_USER.username, nickname: DEFAULT_USER.nickname, role: DEFAULT_USER.role, avatar: null }
-      token.value = mockToken
-      user.value = mockUser
-      localStorage.setItem('auth_token', mockToken)
-      localStorage.setItem('auth_user', JSON.stringify(mockUser))
-      return { token: mockToken, user: mockUser }
-    }
-    throw new Error('用户名或密码错误')
+    const { data } = await authApi.login(username, password)
+    token.value = data.token
+    user.value = data.user
+    localStorage.setItem('auth_token', data.token)
+    localStorage.setItem('auth_user', JSON.stringify(data.user))
+    return data
   }
 
-  function logout() {
-    token.value = ''
-    user.value = null
-    localStorage.removeItem('auth_token')
-    localStorage.removeItem('auth_user')
+  async function loadCurrentUser() {
+    if (!token.value) return null
+    const { data } = await authApi.getMe()
+    user.value = data
+    localStorage.setItem('auth_user', JSON.stringify(data))
+    return data
+  }
+
+  async function logout() {
+    try {
+      if (token.value) {
+        await authApi.logout()
+      }
+    } finally {
+      token.value = ''
+      user.value = null
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('auth_user')
+    }
   }
 
   async function changePassword(oldPassword: string, newPassword: string) {
-    // TODO: 后端就绪后取消注释
-    // await authApi.changePassword(oldPassword, newPassword)
-    if (oldPassword !== DEFAULT_USER.password) {
-      throw new Error('原密码错误')
-    }
-    DEFAULT_USER.password = newPassword
-    return { message: '密码修改成功' }
+    const { data } = await authApi.changePassword(oldPassword, newPassword)
+    return data
   }
 
   async function updateProfile(data: { nickname?: string; avatar?: string }) {
-    // TODO: 后端就绪后取消注释
-    // const { data: updated } = await authApi.updateProfile(data)
-    // user.value = updated
-    if (data.nickname) {
-      user.value = { ...user.value, nickname: data.nickname }
-      localStorage.setItem('auth_user', JSON.stringify(user.value))
-    }
-    return user.value
+    const { data: updated } = await authApi.updateProfile(data)
+    user.value = updated
+    localStorage.setItem('auth_user', JSON.stringify(updated))
+    return updated
   }
 
-  return { token, user, isLoggedIn, login, logout, changePassword, updateProfile }
+  return {
+    token,
+    user,
+    isLoggedIn,
+    login,
+    loadCurrentUser,
+    logout,
+    changePassword,
+    updateProfile,
+  }
 })
 
 export const useAgentStore = defineStore('agent', () => {
@@ -101,7 +100,7 @@ export const useAgentStore = defineStore('agent', () => {
     await fetchAgents()
   }
 
-  async function bindModel(id: number, modelId: number) {
+  async function bindModel(id: number, modelId: number | null) {
     await agentApi.bindModel(id, modelId)
     await fetchAgents()
   }
@@ -134,7 +133,9 @@ export const useSkillStore = defineStore('skill', () => {
     const { data } = await skillApi.create({
       name: preset.name,
       description: preset.description,
+      type: preset.type || 'prompt',
       prompt: preset.prompt,
+      tools: preset.tools,
     })
     await fetchSkills()
     return data

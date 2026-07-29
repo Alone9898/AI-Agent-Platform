@@ -232,9 +232,7 @@ async function handleDelete(id: number) {
 async function handleBind() {
   try {
     const id = currentAgent.value.id
-    if (bindForm.value.modelId) {
-      await agentStore.bindModel(id, bindForm.value.modelId)
-    }
+    await agentStore.bindModel(id, bindForm.value.modelId)
     await agentStore.bindSkills(id, bindForm.value.skillIds)
     ElMessage.success('配置成功')
     bindDialogVisible.value = false

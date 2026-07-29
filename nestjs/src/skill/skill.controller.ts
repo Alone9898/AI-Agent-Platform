@@ -15,12 +15,12 @@ export class SkillController {
   findOne(@Param('id', ParseIntPipe) id: number) { return this.skillService.findOne(id); }
 
   @Post()
-  create(@Body() body: { name: string; description?: string; prompt?: string }) {
+  create(@Body() body: { name: string; description?: string; type?: string; prompt?: string; tools?: string }) {
     return this.skillService.create(body);
   }
 
   @Put(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() body: { name?: string; description?: string; prompt?: string }) {
+  update(@Param('id', ParseIntPipe) id: number, @Body() body: { name?: string; description?: string; type?: string; prompt?: string; tools?: string }) {
     return this.skillService.update(id, body);
   }
 

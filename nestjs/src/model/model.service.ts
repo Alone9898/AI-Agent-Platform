@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface ProviderPreset {
@@ -259,17 +259,50 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
 export class ModelService {
   constructor(private prisma: PrismaService) {}
 
-  findAll() { return this.prisma.model.findMany(); }
-  findOne(id: number) { return this.prisma.model.findUnique({ where: { id } }); }
+  async findAll() {
+    const models = await this.prisma.model.findMany();
+    return models.map((model) => this.toSafeModel(model));
+  }
+
+  async findOne(id: number) {
+    const model = await this.prisma.model.findUnique({ where: { id } });
+    return model ? this.toSafeModel(model) : null;
+  }
+
   create(data: { name: string; provider?: string; providerKey?: string; modelName: string; baseUrl?: string; apiKeyValue?: string }) {
-    return this.prisma.model.create({ data });
+    if (!data.name?.trim() || !data.modelName?.trim()) {
+      throw new BadRequestException('Model name and model identifier are required');
+    }
+    return this.prisma.model.create({ data }).then((model) => this.toSafeModel(model));
   }
+
   update(id: number, data: { name?: string; provider?: string; providerKey?: string; modelName?: string; baseUrl?: string; apiKeyValue?: string }) {
-    return this.prisma.model.update({ where: { id }, data });
+    return this.prisma.model.update({ where: { id }, data }).then((model) => this.toSafeModel(model));
   }
-  remove(id: number) { return this.prisma.model.delete({ where: { id } }); }
+
+  remove(id: number) {
+    return this.prisma.model.delete({ where: { id } }).then((model) => this.toSafeModel(model));
+  }
 
   getProviderPresets(): ProviderPreset[] {
     return PROVIDER_PRESETS;
+  }
+
+  private toSafeModel(model: {
+    id: number;
+    name: string;
+    provider: string | null;
+    providerKey: string | null;
+    modelName: string;
+    baseUrl: string | null;
+    apiKeyValue: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }) {
+    const { apiKeyValue: _apiKeyValue, ...safeModel } = model;
+    return {
+      ...safeModel,
+      hasApiKey: Boolean(_apiKeyValue),
+    };
   }
 }

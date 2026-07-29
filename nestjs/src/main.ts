@@ -28,6 +28,16 @@ async function bootstrap() {
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
+    `CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      nickname TEXT,
+      role TEXT NOT NULL DEFAULT 'admin',
+      avatar TEXT,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
     `CREATE TABLE IF NOT EXISTS agents (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -44,7 +54,9 @@ async function bootstrap() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       description TEXT,
+      type TEXT NOT NULL DEFAULT 'prompt',
       prompt TEXT,
+      tools TEXT,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
@@ -69,6 +81,8 @@ async function bootstrap() {
   const migrations = [
     `ALTER TABLE models ADD COLUMN provider_key TEXT`,
     `ALTER TABLE models ADD COLUMN api_key_value TEXT`,
+    `ALTER TABLE skills ADD COLUMN type TEXT DEFAULT 'prompt'`,
+    `ALTER TABLE skills ADD COLUMN tools TEXT`,
   ];
   for (const sql of migrations) {
     try {

@@ -45,7 +45,7 @@ export const agentApi = {
   update: (id: number, data: any) => api.put(`/agents/${id}`, data),
   remove: (id: number) => api.delete(`/agents/${id}`),
   bindSkills: (id: number, skillIds: number[]) => api.post(`/agents/${id}/skills`, { skillIds }),
-  bindModel: (id: number, modelId: number) =>
+  bindModel: (id: number, modelId: number | null) =>
     api.post(`/agents/${id}/model`, { modelId }),
 }
 

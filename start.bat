@@ -19,6 +19,19 @@ if exist "%CARGO_BIN%" (
 
 echo.
 
+:: 检测并释放被占用的端口
+echo [0/2] 检查端口占用...
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":1420.*LISTENING" 2^>nul') do (
+    echo [INFO] 发现端口 1420 被 PID %%a 占用，正在释放...
+    taskkill /F /PID %%a >nul 2>&1
+)
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr ":3000.*LISTENING" 2^>nul') do (
+    echo [INFO] 发现端口 3000 被 PID %%a 占用，正在释放...
+    taskkill /F /PID %%a >nul 2>&1
+)
+echo [OK] 端口检查完成
+echo.
+
 :: 1. 构建 NestJS 后端
 echo [1/2] 构建 NestJS 后端...
 cd /d "%~dp0nestjs"

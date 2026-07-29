@@ -3,9 +3,10 @@ import { PrismaService } from './prisma/prisma.service';
 import { AgentModule } from './agent/agent.module';
 import { SkillModule } from './skill/skill.module';
 import { ModelModule } from './model/model.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
-  imports: [AgentModule, SkillModule, ModelModule],
+  imports: [AuthModule, AgentModule, SkillModule, ModelModule],
   providers: [PrismaService],
   exports: [PrismaService],
 })

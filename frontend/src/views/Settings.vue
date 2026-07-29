@@ -68,6 +68,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { invoke } from '@tauri-apps/api/core'
 
 const autoStart = ref(false)
 const updateStatus = ref('')
@@ -77,11 +78,11 @@ const checking = ref(false)
 
 onMounted(async () => {
   try {
-    dataDir.value = 'AppData will be shown in Tauri environment'
-    backendStatus.value = 'running'
+    dataDir.value = await invoke<string>('get_data_dir')
+    backendStatus.value = await invoke<boolean>('check_sidecar_status') ? 'running' : 'stopped'
   } catch {
-    dataDir.value = 'Development mode'
-    backendStatus.value = 'running'
+    dataDir.value = '开发模式'
+    backendStatus.value = 'stopped'
   }
 })
 
