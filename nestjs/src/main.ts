@@ -13,8 +13,10 @@ async function bootstrap() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
       provider TEXT,
+      provider_key TEXT,
       model_name TEXT NOT NULL,
       base_url TEXT,
+      api_key_value TEXT,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`,
@@ -60,6 +62,19 @@ async function bootstrap() {
       await prisma.$executeRawUnsafe(sql);
     } catch (e) {
       console.error('Failed to create table:', e.message);
+    }
+  }
+
+  // Add missing columns for existing databases (safe migrations)
+  const migrations = [
+    `ALTER TABLE models ADD COLUMN provider_key TEXT`,
+    `ALTER TABLE models ADD COLUMN api_key_value TEXT`,
+  ];
+  for (const sql of migrations) {
+    try {
+      await prisma.$executeRawUnsafe(sql);
+    } catch (_e) {
+      // Column already exists, ignore
     }
   }
   console.log('Database schema ensured successfully');
