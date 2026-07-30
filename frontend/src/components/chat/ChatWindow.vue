@@ -1,15 +1,21 @@
 <template>
   <section class="chat-window">
     <div class="window-header">
-      <div>
-        <h2 class="window-title">{{ props.agent?.name || '请选择智能体' }}</h2>
-        <p class="window-subtitle">
-          {{
-            props.agent
-              ? getAgentSubtitle(props.agent)
-              : '请从左侧选择一个智能体开始对话。'
-          }}
-        </p>
+      <div class="window-identity">
+        <div class="window-agent-mark">
+          <el-icon><ChatDotRound /></el-icon>
+        </div>
+        <div>
+          <span class="window-eyebrow">ACTIVE CONVERSATION</span>
+          <h2 class="window-title">{{ props.agent?.name || '请选择智能体' }}</h2>
+          <p class="window-subtitle">
+            {{
+              props.agent
+                ? getAgentSubtitle(props.agent)
+                : '请从左侧选择一个智能体开始对话。'
+            }}
+          </p>
+        </div>
       </div>
 
       <div v-if="props.agent" class="window-badges">
@@ -29,7 +35,10 @@
           :class="message.role"
         >
           <div class="message-avatar">
-            {{ message.role === 'assistant' ? '助' : '我' }}
+            <el-icon>
+              <Cpu v-if="message.role === 'assistant'" />
+              <User v-else />
+            </el-icon>
           </div>
           <div class="message-bubble">
             <div class="message-meta">
@@ -59,23 +68,27 @@
         </article>
       </div>
 
-      <el-empty
-        v-else-if="props.agent && !props.loading"
-        description="暂无消息"
-        :image-size="120"
-      >
-        <template #description>
-          <div class="empty-hint">
-            请在下方发送消息开始对话。
+      <div v-else-if="props.agent && !props.loading" class="empty-state">
+        <div class="empty-orbit">
+          <span class="orbit-dot dot-one"></span>
+          <span class="orbit-dot dot-two"></span>
+          <div class="empty-core">
+            <el-icon><ChatDotRound /></el-icon>
           </div>
-        </template>
-      </el-empty>
+        </div>
+        <span class="empty-eyebrow">NEW CONVERSATION</span>
+        <h3>和 {{ props.agent.name }} 开始协作</h3>
+        <p>发送一条消息，智能体会结合已绑定的模型与技能为你工作。</p>
+      </div>
 
-      <el-empty
-        v-else
-        description="尚未选择智能体"
-        :image-size="120"
-      />
+      <div v-else class="empty-state muted">
+        <div class="empty-core standalone">
+          <el-icon><ChatDotRound /></el-icon>
+        </div>
+        <span class="empty-eyebrow">SELECT AN AGENT</span>
+        <h3>{{ props.loading ? '正在加载智能体' : '选择一位智能体' }}</h3>
+        <p>{{ props.loading ? '工作台正在准备你的智能团队。' : '从左侧目录选择成员后开始对话。' }}</p>
+      </div>
     </div>
 
     <div v-if="props.sending" class="thinking-bar">
@@ -87,7 +100,7 @@
 
 <script setup lang="ts">
 import { nextTick, ref, watch } from 'vue'
-import { Loading } from '@element-plus/icons-vue'
+import { ChatDotRound, Cpu, Loading, User } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   agent: any | null
@@ -181,42 +194,89 @@ defineExpose({
   flex: 1;
   height: 100%;
   min-height: 0;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(255, 255, 255, 0.62);
-  box-shadow: 0 18px 40px rgba(26, 31, 54, 0.1);
-  backdrop-filter: blur(14px);
   overflow: hidden;
+  background: #fff;
 }
 
 .window-header {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-  padding: 18px 20px 14px;
-  border-bottom: 1px solid #eef1f7;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(248, 250, 255, 0.96));
+  gap: 20px;
+  align-items: center;
+  padding: 17px 20px;
+  border-bottom: 1px solid #eff0f4;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.window-identity {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.window-agent-mark {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e3dffb;
+  border-radius: 12px;
+  color: #7364e5;
+  font-size: 17px;
+  background: linear-gradient(145deg, #f4f2ff, #ebe8ff);
+  box-shadow: 0 7px 16px rgba(104, 87, 210, 0.1);
+}
+
+.window-identity > div:last-child {
+  min-width: 0;
+}
+
+.window-eyebrow {
+  display: block;
+  margin-bottom: 2px;
+  color: #a0a4b4;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 1.3px;
 }
 
 .window-title {
   margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-  color: #1a1f36;
+  color: #282d40;
+  font-size: 15px;
+  font-weight: 680;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .window-subtitle {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #6b7280;
+  max-width: 500px;
+  margin-top: 2px;
+  overflow: hidden;
+  color: #8e92a3;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .window-badges {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.window-badges :deep(.el-tag) {
+  height: 25px;
+  border-color: #e5e2f8;
+  border-radius: 8px;
+  color: #77718f;
+  font-size: 9px;
+  background: #faf9ff;
 }
 
 .message-list {
@@ -224,15 +284,20 @@ defineExpose({
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 20px;
+  padding: 24px clamp(18px, 3vw, 34px);
   overflow-y: auto;
   background:
-    radial-gradient(circle at top left, rgba(102, 126, 234, 0.06), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(118, 75, 162, 0.05), transparent 32%),
-    #f8fafc;
+    radial-gradient(circle at 100% 0%, rgba(116, 102, 239, 0.045), transparent 30%),
+    linear-gradient(rgba(123, 128, 151, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(123, 128, 151, 0.025) 1px, transparent 1px),
+    #fafbfe;
+  background-size: auto, 34px 34px, 34px 34px, auto;
 }
 
 .message-stack {
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -241,8 +306,8 @@ defineExpose({
 
 .message-row {
   display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 18px;
 }
 
 .message-row.user {
@@ -250,65 +315,85 @@ defineExpose({
 }
 
 .message-avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #dbe4ff 0%, #c4b5fd 100%);
-  color: #1f2a44;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  flex-shrink: 0;
+  border: 1px solid #e2defb;
+  border-radius: 11px;
+  color: #7162df;
+  font-size: 14px;
+  background: linear-gradient(145deg, #f1efff, #e7e3ff);
+  box-shadow: 0 6px 14px rgba(76, 64, 156, 0.09);
 }
 
 .message-row.user .message-avatar {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: transparent;
   color: #fff;
+  background: linear-gradient(145deg, #8072ef, #6554d0);
+  box-shadow: 0 7px 15px rgba(93, 76, 194, 0.18);
 }
 
 .message-bubble {
-  max-width: min(720px, calc(100% - 60px));
-  padding: 14px 16px;
-  border-radius: 16px;
-  border: 1px solid #e7eaf0;
+  max-width: min(760px, calc(100% - 52px));
+  padding: 13px 15px 14px;
+  border: 1px solid #e9eaf0;
+  border-radius: 5px 15px 15px 15px;
+  color: #3a3f52;
   background: #fff;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 8px 20px rgba(33, 37, 61, 0.04);
 }
 
 .message-row.user .message-bubble {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
   border-color: transparent;
+  border-radius: 15px 5px 15px 15px;
+  color: #fff;
+  background: linear-gradient(135deg, #7668e8 0%, #6251ca 100%);
+  box-shadow: 0 10px 22px rgba(92, 75, 192, 0.16);
 }
 
 .message-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-  font-size: 11px;
-  opacity: 0.85;
+  gap: 14px;
+  margin-bottom: 7px;
+  color: #999dad;
+  font-size: 9px;
+}
+
+.message-role {
+  color: #6a6f82;
+  font-weight: 650;
+}
+
+.message-row.user .message-meta,
+.message-row.user .message-role {
+  color: rgba(255, 255, 255, 0.68);
 }
 
 .message-content {
   white-space: pre-wrap;
-  line-height: 1.7;
-  font-size: 14px;
+  line-height: 1.75;
+  font-size: 13px;
   word-break: break-word;
 }
 
 .runtime-steps {
   margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid #edf0f5;
-  font-size: 12px;
-  color: #667085;
+  padding: 10px 11px;
+  border: 1px solid #edebf7;
+  border-radius: 10px;
+  color: #787d90;
+  font-size: 10px;
+  background: #faf9fe;
 }
 
 .runtime-steps summary {
+  color: #6c627f;
+  font-weight: 600;
   cursor: pointer;
   user-select: none;
 }
@@ -316,58 +401,162 @@ defineExpose({
 .runtime-step {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 8px;
+  gap: 7px;
   align-items: center;
-  margin-top: 8px;
+  margin-top: 9px;
 }
 
 .runtime-step pre {
   grid-column: 1 / -1;
   margin: 0;
   white-space: pre-wrap;
-  color: #b42318;
+  color: #b44840;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 9px;
 }
 
 .step-status {
-  padding: 1px 6px;
+  padding: 2px 6px;
   border-radius: 999px;
-  background: #ecfdf3;
-  color: #027a48;
+  color: #248760;
+  background: #eaf9f2;
 }
 
 .step-status.failed {
-  background: #fef3f2;
-  color: #b42318;
+  color: #b44840;
+  background: #fff0ef;
 }
 
 .step-duration {
-  color: #98a2b3;
+  color: #a6aab8;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 9px;
 }
 
 .thinking-bar {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 20px 18px;
-  font-size: 12px;
-  color: #6b7280;
-  border-top: 1px solid #eef1f7;
-  background: rgba(255, 255, 255, 0.92);
+  padding: 10px 20px;
+  border-top: 1px solid #eff0f4;
+  color: #777c8f;
+  font-size: 10px;
+  background: #fcfcfe;
 }
 
-.empty-hint {
-  font-size: 13px;
-  color: #8a94a6;
+.thinking-bar .el-icon {
+  color: #7466e8;
+  font-size: 14px;
+}
+
+.empty-state {
+  width: 100%;
+  max-width: 420px;
+  margin: auto;
+  padding: 32px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.empty-orbit {
+  position: relative;
+  width: 94px;
+  height: 94px;
+  margin-bottom: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(116, 102, 232, 0.13);
+  border-radius: 50%;
+}
+
+.empty-orbit::before {
+  position: absolute;
+  inset: 10px;
+  border: 1px dashed rgba(116, 102, 232, 0.16);
+  border-radius: 50%;
+  content: '';
+}
+
+.empty-core {
+  position: relative;
+  z-index: 1;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e3dffb;
+  border-radius: 15px;
+  color: #7263df;
+  font-size: 20px;
+  background: linear-gradient(145deg, #f3f1ff, #e7e3ff);
+  box-shadow: 0 12px 24px rgba(90, 75, 186, 0.12);
+}
+
+.empty-core.standalone {
+  margin-bottom: 20px;
+}
+
+.orbit-dot {
+  position: absolute;
+  z-index: 2;
+  width: 7px;
+  height: 7px;
+  border: 2px solid #fafbfe;
+  border-radius: 50%;
+}
+
+.dot-one {
+  top: 10px;
+  right: 18px;
+  background: #6fd4bb;
+}
+
+.dot-two {
+  left: 4px;
+  bottom: 26px;
+  background: #897bf0;
+}
+
+.empty-eyebrow {
+  color: #9b9faf;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+}
+
+.empty-state h3 {
+  margin: 8px 0 7px;
+  color: #313649;
+  font-size: 17px;
+  font-weight: 680;
+}
+
+.empty-state p {
+  max-width: 350px;
+  margin: 0;
+  color: #969aab;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.empty-state.muted .empty-core {
+  filter: grayscale(0.25);
+  opacity: 0.72;
 }
 
 .message-list::-webkit-scrollbar {
-  width: 8px;
+  width: 7px;
 }
 
 .message-list::-webkit-scrollbar-thumb {
-  background: rgba(102, 126, 234, 0.28);
+  border: 2px solid transparent;
   border-radius: 999px;
-  border: 2px solid rgba(248, 250, 252, 0.8);
+  background: rgba(116, 102, 239, 0.3);
+  background-clip: padding-box;
 }
 
 .message-list::-webkit-scrollbar-track {
@@ -375,12 +564,49 @@ defineExpose({
 }
 
 .message-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(102, 126, 234, 0.42);
+  background: rgba(116, 102, 239, 0.45);
+  background-clip: padding-box;
 }
 
 @media (max-width: 960px) {
   .message-bubble {
-    max-width: calc(100% - 52px);
+    max-width: calc(100% - 46px);
+  }
+}
+
+@media (max-width: 620px) {
+  .window-header {
+    align-items: flex-start;
+    padding: 14px 15px;
+  }
+
+  .window-agent-mark {
+    width: 36px;
+    height: 36px;
+  }
+
+  .window-badges {
+    display: none;
+  }
+
+  .message-list {
+    padding: 18px 14px;
+  }
+
+  .message-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 9px;
+  }
+
+  .message-bubble {
+    padding: 11px 13px 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orbit-dot {
+    animation: none;
   }
 }
 </style>

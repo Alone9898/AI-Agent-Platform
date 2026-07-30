@@ -1,11 +1,11 @@
 <template>
   <aside class="chat-sidebar">
     <div class="sidebar-header">
-      <div>
+      <div class="sidebar-heading">
+        <span class="sidebar-eyebrow">AGENT DIRECTORY</span>
         <h2 class="sidebar-title">智能体</h2>
-        <p class="sidebar-subtitle">{{ props.agents.length }} 个可用</p>
       </div>
-      <el-tag size="small" effect="plain">{{ props.agents.length }}</el-tag>
+      <span class="agent-count">{{ props.agents.length }}</span>
     </div>
 
     <div class="sidebar-body" v-loading="props.loading">
@@ -28,9 +28,9 @@
           <div class="agent-content">
             <div class="agent-topline">
               <h3 class="agent-name">{{ agent.name }}</h3>
-              <el-tag v-if="agent.id === props.activeAgentId" size="small" type="success" effect="light">
-                当前
-              </el-tag>
+              <span v-if="agent.id === props.activeAgentId" class="active-label">
+                <i></i> 当前
+              </span>
             </div>
 
             <p class="agent-desc">
@@ -55,6 +55,11 @@
         description="未找到智能体"
         :image-size="96"
       />
+    </div>
+
+    <div class="sidebar-footer">
+      <span class="footer-dot"></span>
+      <span>选择智能体开始协作</span>
     </div>
   </aside>
 </template>
@@ -101,19 +106,19 @@ function getSkillCount(agent: any): number {
 
 <style scoped>
 .chat-sidebar {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(224, 226, 235, 0.9);
   border-radius: 18px;
   background:
-    radial-gradient(circle at top left, rgba(102, 126, 234, 0.12), transparent 30%),
-    radial-gradient(circle at bottom right, rgba(118, 75, 162, 0.10), transparent 28%),
-    rgba(255, 255, 255, 0.74);
-  border: 1px solid rgba(255, 255, 255, 0.64);
-  box-shadow: 0 18px 40px rgba(26, 31, 54, 0.08);
-  color: #1f2a44;
-  backdrop-filter: blur(16px);
-  overflow: hidden;
+    radial-gradient(circle at 0 0, rgba(116, 102, 239, 0.09), transparent 32%),
+    rgba(255, 255, 255, 0.88);
+  box-shadow: 0 18px 45px rgba(31, 35, 60, 0.055);
+  color: #23283b;
+  backdrop-filter: blur(14px);
 }
 
 .sidebar-header {
@@ -121,105 +126,142 @@ function getSkillCount(agent: any): number {
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 20px 18px 14px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+  padding: 20px 18px 17px;
+  border-bottom: 1px solid #eff0f4;
+}
+
+.sidebar-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-eyebrow {
+  color: #9b9faf;
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: 1.35px;
 }
 
 .sidebar-title {
-  font-size: 18px;
-  font-weight: 700;
   margin: 0;
+  color: #23283b;
+  font-size: 17px;
+  font-weight: 680;
+  letter-spacing: -0.2px;
 }
 
-.sidebar-subtitle {
-  font-size: 12px;
-  color: #667085;
-  margin-top: 4px;
+.agent-count {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e6e3fb;
+  border-radius: 9px;
+  color: #6f61dc;
+  font-size: 11px;
+  font-weight: 700;
+  background: #f3f1ff;
 }
 
 .sidebar-body {
   flex: 1;
   min-height: 0;
-  padding: 12px;
+  padding: 10px;
   overflow-y: auto;
 }
 
 .agent-item {
+  position: relative;
   width: 100%;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.56);
+  display: flex;
+  gap: 11px;
+  padding: 12px;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 13px;
   color: inherit;
   text-align: left;
-  display: flex;
-  gap: 12px;
-  padding: 14px;
+  background: transparent;
   cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  transition: border-color 0.22s ease, background 0.22s ease, transform 0.22s ease;
 }
 
 .agent-item + .agent-item {
-  margin-top: 10px;
+  margin-top: 4px;
 }
 
 .agent-item:hover {
-  transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.84);
-  border-color: rgba(102, 126, 234, 0.22);
+  border-color: #eceaf8;
+  background: #faf9ff;
+  transform: translateX(2px);
 }
 
 .agent-item.active {
-  background:
-    linear-gradient(135deg, rgba(102, 126, 234, 0.16) 0%, rgba(118, 75, 162, 0.12) 100%),
-    rgba(255, 255, 255, 0.92);
-  border-color: rgba(102, 126, 234, 0.34);
-  box-shadow: 0 10px 24px rgba(102, 126, 234, 0.10);
+  border-color: rgba(120, 103, 238, 0.16);
+  background: linear-gradient(110deg, rgba(116, 102, 239, 0.11), rgba(116, 102, 239, 0.035));
+  box-shadow: inset 3px 0 0 #7e70ef;
+}
+
+.agent-item.active::after {
+  position: absolute;
+  width: 70px;
+  height: 70px;
+  right: -46px;
+  top: -42px;
+  border-radius: 50%;
+  content: '';
+  background: rgba(126, 112, 239, 0.09);
 }
 
 .avatar-wrap {
   position: relative;
   flex-shrink: 0;
-  width: 56px;
-  height: 56px;
+  width: 46px;
+  height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .agent-avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
+  width: 46px;
+  height: 46px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
-  font-weight: 700;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  border-radius: 13px;
   color: #fff;
-  border: 3px solid #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font-size: 16px;
+  font-weight: 700;
+  box-shadow: 0 6px 14px rgba(35, 39, 64, 0.13);
   letter-spacing: 0;
 }
 
 .status-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #c0c4cc;
-  border: 2px solid #fff;
   position: absolute;
-  bottom: 2px;
-  right: calc(50% - 30px);
+  right: -1px;
+  bottom: -1px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #c4c7d1;
+  box-shadow: 0 2px 5px rgba(32, 36, 58, 0.12);
 }
 
 .status-dot.online {
-  background: #67c23a;
+  background: #4fcc98;
 }
 
 .agent-content {
   min-width: 0;
   flex: 1;
+  padding-top: 1px;
 }
 
 .agent-topline {
@@ -230,38 +272,82 @@ function getSkillCount(agent: any): number {
 }
 
 .agent-name {
-  font-size: 14px;
-  font-weight: 700;
   margin: 0;
-  color: #1f2a44;
+  color: #303548;
+  font-size: 12px;
+  font-weight: 680;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.active-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #7466e6;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.active-label i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #7466e6;
+  box-shadow: 0 0 0 3px rgba(116, 102, 230, 0.09);
+}
+
 .agent-desc {
-  margin-top: 4px;
-  font-size: 12px;
-  color: #667085;
-  line-height: 1.5;
+  min-height: 17px;
+  margin-top: 3px;
+  color: #8b90a1;
+  font-size: 10px;
+  line-height: 1.55;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: 36px;
 }
 
 .agent-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-  font-size: 12px;
-  color: #667085;
+  gap: 5px;
+  margin-top: 6px;
+  overflow: hidden;
+  color: #999dad;
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.meta-item {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .meta-separator {
-  color: rgba(102, 112, 133, 0.45);
+  flex-shrink: 0;
+  color: #c1c4cf;
+}
+
+.sidebar-footer {
+  padding: 12px 17px 14px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border-top: 1px solid #eff0f4;
+  color: #a1a5b4;
+  font-size: 9px;
+  letter-spacing: 0.2px;
+}
+
+.footer-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #7c6eed;
+  box-shadow: 0 0 0 4px rgba(124, 110, 237, 0.08);
 }
 
 :deep(.sidebar-body .el-loading-mask) {
@@ -270,11 +356,12 @@ function getSkillCount(agent: any): number {
 }
 
 :deep(.sidebar-body .el-empty__description p) {
-  color: #667085;
+  color: #999dad;
+  font-size: 11px;
 }
 
 .sidebar-body::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .sidebar-body::-webkit-scrollbar-track {
@@ -282,18 +369,27 @@ function getSkillCount(agent: any): number {
 }
 
 .sidebar-body::-webkit-scrollbar-thumb {
-  background: rgba(102, 126, 234, 0.28);
+  border: 2px solid transparent;
   border-radius: 999px;
-  border: 2px solid rgba(255, 255, 255, 0.55);
+  background: rgba(116, 102, 239, 0.3);
+  background-clip: padding-box;
 }
 
 .sidebar-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(102, 126, 234, 0.42);
+  background: rgba(116, 102, 239, 0.45);
+  background-clip: padding-box;
 }
 
 @media (max-width: 960px) {
   .chat-sidebar {
-    min-height: 320px;
+    min-height: 240px;
+    max-height: 280px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-item {
+    transition: none;
   }
 }
 </style>

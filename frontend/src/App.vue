@@ -4,13 +4,29 @@
 
   <!-- 主布局 -->
   <el-container v-else class="app-container">
-    <el-aside width="220px" class="app-aside">
+    <el-aside width="248px" class="app-aside">
+      <div class="aside-grid"></div>
+      <div class="aside-glow"></div>
+
       <div class="logo-area">
         <div class="logo-icon">
-          <el-icon :size="26"><Cpu /></el-icon>
+          <el-icon :size="22"><Cpu /></el-icon>
         </div>
-        <span class="logo-text">AI Agent</span>
+        <div class="logo-copy">
+          <strong class="logo-text">AI Agent</strong>
+          <span class="logo-subtitle">PLATFORM</span>
+        </div>
       </div>
+
+      <div class="workspace-badge">
+        <span class="workspace-dot"></span>
+        <div>
+          <strong>LOCAL WORKSPACE</strong>
+          <span>桌面智能工作台</span>
+        </div>
+      </div>
+
+      <div class="menu-label">工作台</div>
       <el-menu
         :default-active="currentRoute"
         background-color="transparent"
@@ -19,14 +35,14 @@
         router
         class="sidebar-menu"
       >
-          <el-menu-item index="/chat">
-            <el-icon><ChatDotRound /></el-icon>
-            <span>对话系统</span>
-          </el-menu-item>
-          <el-menu-item index="/agents">
-            <el-icon><User /></el-icon>
-            <span>Agent 管理</span>
-          </el-menu-item>
+        <el-menu-item index="/chat">
+          <el-icon><ChatDotRound /></el-icon>
+          <span>对话系统</span>
+        </el-menu-item>
+        <el-menu-item index="/agents">
+          <el-icon><User /></el-icon>
+          <span>Agent 管理</span>
+        </el-menu-item>
         <el-menu-item index="/skills">
           <el-icon><MagicStick /></el-icon>
           <span>Skill 管理</span>
@@ -43,6 +59,7 @@
 
       <!-- 底部用户信息 -->
       <div class="user-area">
+        <span class="user-area-label">当前账号</span>
         <el-dropdown trigger="click" @command="handleUserCommand" class="user-dropdown">
           <div class="user-info">
             <div class="user-avatar">{{ avatarChar }}</div>
@@ -50,7 +67,9 @@
               <span class="user-name">{{ authStore.user?.username || '用户' }}</span>
               <span class="user-role">{{ authStore.user?.nickname || roleLabel }}</span>
             </div>
-            <el-icon class="dropdown-arrow"><ArrowDown /></el-icon>
+            <div class="dropdown-trigger">
+              <el-icon><ArrowDown /></el-icon>
+            </div>
           </div>
           <template #dropdown>
             <el-dropdown-menu>
@@ -68,9 +87,26 @@
         </el-dropdown>
       </div>
     </el-aside>
-    <el-main class="app-main">
-      <router-view />
-    </el-main>
+
+    <el-container class="workspace-container">
+      <el-header height="78px" class="app-header">
+        <div class="header-context">
+          <span class="header-eyebrow">AI AGENT OPERATING SYSTEM</span>
+          <strong>智能工作台</strong>
+        </div>
+        <div class="runtime-status">
+          <span class="runtime-dot"></span>
+          <div>
+            <strong>本地模式</strong>
+            <span>数据与服务运行于本机</span>
+          </div>
+        </div>
+      </el-header>
+
+      <el-main class="app-main">
+        <router-view />
+      </el-main>
+    </el-container>
 
     <!-- 个人信息对话框 -->
     <el-dialog v-model="profileDialogVisible" title="个人信息" width="440px" destroy-on-close>
@@ -219,89 +255,245 @@ async function handleChangePassword() {
 </script>
 
 <style>
+:root {
+  --app-accent: #7466ef;
+  --app-accent-deep: #6352d2;
+  --app-ink: #171b2d;
+  --app-muted: #8b90a3;
+  --app-border: #e6e8ef;
+  --app-surface: #ffffff;
+  --app-canvas: #f3f5f9;
+  --el-color-primary: #7466ef;
+  --el-color-primary-light-3: #978cf4;
+  --el-color-primary-light-5: #b9b1f7;
+  --el-color-primary-light-7: #d8d4fb;
+  --el-color-primary-light-8: #e7e4fd;
+  --el-color-primary-light-9: #f2f0fe;
+  --el-color-primary-dark-2: #5d52bf;
+}
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-  background: #f0f2f5;
+  color: var(--app-ink);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  background: var(--app-canvas);
+  -webkit-font-smoothing: antialiased;
 }
 
 .app-container {
   height: 100vh;
+  overflow: hidden;
+  background: var(--app-canvas);
 }
 
 .app-aside {
-  background: linear-gradient(180deg, #1a1f36 0%, #242b45 100%);
-  overflow: hidden;
+  position: relative;
   display: flex;
   flex-direction: column;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  border-right: 1px solid rgba(255, 255, 255, 0.055);
+  background:
+    radial-gradient(circle at 14% 2%, rgba(122, 103, 246, 0.16), transparent 30%),
+    linear-gradient(165deg, #151a2f 0%, #181e35 60%, #1d233e 100%);
+  box-shadow: 10px 0 36px rgba(29, 33, 56, 0.08);
+  transition: width 0.25s ease;
+}
+
+.aside-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.18;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 38px 38px;
+  mask-image: linear-gradient(to bottom, #000, transparent 62%);
+}
+
+.aside-glow {
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  right: -140px;
+  top: 28%;
+  border-radius: 50%;
+  pointer-events: none;
+  background: rgba(116, 102, 239, 0.13);
+  box-shadow: 0 0 70px rgba(116, 102, 239, 0.16);
 }
 
 .logo-area {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 22px 20px 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  margin-bottom: 8px;
+  gap: 12px;
+  padding: 28px 22px 22px;
 }
 
 .logo-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 13px;
   color: #fff;
-  flex-shrink: 0;
+  background: linear-gradient(145deg, #8b7df8 0%, #6654d5 100%);
+  box-shadow: 0 12px 25px rgba(93, 75, 200, 0.3), inset 0 1px rgba(255, 255, 255, 0.24);
+}
+
+.logo-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .logo-text {
-  color: #fff;
-  font-size: 18px;
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 16px;
+  line-height: 1.15;
   font-weight: 700;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.2px;
+}
+
+.logo-subtitle {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+}
+
+.workspace-badge {
+  position: relative;
+  z-index: 1;
+  margin: 2px 14px 30px;
+  padding: 12px 13px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.workspace-dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #61dcad;
+  box-shadow: 0 0 0 5px rgba(97, 220, 173, 0.08), 0 0 14px rgba(97, 220, 173, 0.55);
+}
+
+.workspace-badge > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.workspace-badge strong {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 1.1px;
+}
+
+.workspace-badge span:last-child {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 10px;
+}
+
+.menu-label {
+  position: relative;
+  z-index: 1;
+  margin: 0 24px 9px;
+  color: rgba(255, 255, 255, 0.24);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.6px;
 }
 
 .sidebar-menu {
+  position: relative;
+  z-index: 1;
   border-right: none !important;
   flex: 1;
 }
 
 .sidebar-menu .el-menu-item {
-  height: 46px;
-  line-height: 46px;
-  margin: 2px 8px;
-  border-radius: 8px;
-  font-size: 14px;
-  transition: all 0.25s ease;
+  height: 48px;
+  margin: 4px 12px;
+  padding: 0 12px !important;
+  gap: 11px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  color: rgba(231, 234, 249, 0.55) !important;
+  font-size: 13px;
+  transition: color 0.22s ease, background 0.22s ease, border-color 0.22s ease, transform 0.22s ease;
 }
 
 .sidebar-menu .el-menu-item:hover {
-  background-color: rgba(255, 255, 255, 0.08) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  background: rgba(255, 255, 255, 0.045) !important;
+  transform: translateX(2px);
 }
 
 .sidebar-menu .el-menu-item.is-active {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.8) 0%, rgba(118, 75, 162, 0.8) 100%) !important;
+  border-color: rgba(151, 137, 255, 0.16);
+  background: linear-gradient(100deg, rgba(116, 102, 239, 0.2), rgba(116, 102, 239, 0.07)) !important;
   color: #fff !important;
   font-weight: 600;
+  box-shadow: inset 3px 0 0 #8f82fa;
 }
 
 .sidebar-menu .el-menu-item .el-icon {
-  font-size: 18px;
-  margin-right: 8px;
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  font-size: 16px;
+  transition: color 0.22s ease, background 0.22s ease;
+}
+
+.sidebar-menu .el-menu-item.is-active .el-icon {
+  color: #b8afff;
+  background: rgba(137, 120, 255, 0.13);
 }
 
 /* ========== 底部用户区域 ========== */
 .user-area {
-  padding: 10px 12px 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+  z-index: 1;
+  padding: 14px 12px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.user-area-label {
+  display: block;
+  margin: 0 10px 8px;
+  color: rgba(255, 255, 255, 0.22);
+  font-size: 9px;
+  letter-spacing: 1.2px;
 }
 
 .user-dropdown {
@@ -311,29 +503,34 @@ body {
 .user-info {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 10px;
+  gap: 11px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.065);
+  border-radius: 12px;
   cursor: pointer;
-  transition: background 0.25s ease;
+  background: rgba(255, 255, 255, 0.035);
+  transition: border-color 0.22s ease, background 0.22s ease;
 }
 
 .user-info:hover {
-  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(149, 135, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .user-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 11px;
   color: #fff;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-  flex-shrink: 0;
+  background: linear-gradient(145deg, #8173f2, #5f50c9);
+  box-shadow: 0 8px 16px rgba(83, 67, 181, 0.22);
 }
 
 .user-detail {
@@ -344,79 +541,220 @@ body {
 }
 
 .user-name {
-  font-size: 13px;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 12px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .user-role {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.34);
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.dropdown-arrow {
-  color: rgba(255, 255, 255, 0.4);
-  font-size: 12px;
+.dropdown-trigger {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 /* ========== 主内容区 ========== */
+.workspace-container {
+  min-width: 0;
+  height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(116, 102, 239, 0.055), transparent 26%),
+    var(--app-canvas);
+}
+
+.app-header {
+  flex-shrink: 0;
+  padding: 17px 28px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: transparent;
+}
+
+.header-context {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.header-eyebrow {
+  color: #a4a8b8;
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: 1.5px;
+}
+
+.header-context strong {
+  color: #262b3e;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.runtime-status {
+  padding: 8px 11px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(222, 225, 234, 0.9);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 6px 18px rgba(40, 44, 68, 0.035);
+  backdrop-filter: blur(10px);
+}
+
+.runtime-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #4ecb98;
+  box-shadow: 0 0 0 5px rgba(78, 203, 152, 0.09), 0 0 10px rgba(78, 203, 152, 0.45);
+}
+
+.runtime-status > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.runtime-status strong {
+  color: #52576a;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.runtime-status span:last-child {
+  color: #a1a5b5;
+  font-size: 8px;
+}
+
 .app-main {
-  padding: 24px 28px;
-  background: #f0f2f5;
+  min-width: 0;
+  padding: 18px 28px 28px;
   overflow-y: auto;
+  background: transparent;
 }
 
 .el-table {
-  border-radius: 8px;
+  --el-table-border-color: #eceef3;
+  --el-table-row-hover-bg-color: #f7f6ff;
+  border-radius: 12px;
   overflow: hidden;
 }
 
 .el-table th.el-table__cell {
-  background-color: #fafbfc !important;
+  background-color: #f8f9fc !important;
   font-weight: 600;
-  color: #303133;
-  font-size: 13px;
+  color: #575c70;
+  font-size: 12px;
 }
 
 .el-table .el-table__row:hover > td {
-  background-color: #f5f7ff !important;
+  background-color: #f7f6ff !important;
+}
+
+.el-button {
+  border-radius: 9px;
+  font-weight: 550;
+}
+
+.el-button--primary:not(.is-link):not(.is-text) {
+  border-color: transparent;
+  background: linear-gradient(135deg, #796bf1 0%, #6654d5 100%);
+  box-shadow: 0 7px 16px rgba(102, 84, 213, 0.15);
+}
+
+.el-button--primary:not(.is-link):not(.is-text):hover {
+  border-color: transparent;
+  filter: brightness(1.04);
+  box-shadow: 0 9px 20px rgba(102, 84, 213, 0.22);
+}
+
+.el-input__wrapper,
+.el-select__wrapper,
+.el-textarea__inner {
+  border-radius: 9px;
+}
+
+.el-card,
+.table-card,
+.settings-card {
+  border-color: var(--app-border) !important;
+  box-shadow: 0 10px 28px rgba(31, 36, 61, 0.045) !important;
 }
 
 .el-dialog {
-  border-radius: 12px !important;
+  border: 1px solid rgba(230, 232, 239, 0.9);
+  border-radius: 18px !important;
   overflow: hidden;
+  box-shadow: 0 30px 80px rgba(28, 32, 54, 0.18) !important;
 }
 
 .el-dialog__header {
-  border-bottom: 1px solid #f0f0f0;
-  padding-bottom: 16px !important;
+  padding: 22px 24px 18px !important;
+  border-bottom: 1px solid #eff0f4;
   margin-right: 0 !important;
 }
 
+.el-dialog__title {
+  color: #24283a;
+  font-size: 16px;
+  font-weight: 680;
+}
+
+.el-dialog__body {
+  padding: 22px 24px !important;
+}
+
 .el-dialog__footer {
-  border-top: 1px solid #f0f0f0;
-  padding-top: 16px !important;
+  padding: 16px 24px 20px !important;
+  border-top: 1px solid #eff0f4;
+  background: #fbfbfd;
 }
 
 .app-main > div {
-  animation: fadeIn 0.3s ease;
+  animation: fadeIn 0.32s ease;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .app-main::-webkit-scrollbar {
-  width: 6px;
+  width: 7px;
 }
+
 .app-main::-webkit-scrollbar-thumb {
-  background: #c0c4cc;
-  border-radius: 3px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: #c8cbd6;
+  background-clip: padding-box;
 }
+
 .app-main::-webkit-scrollbar-track {
   background: transparent;
 }
@@ -426,34 +764,154 @@ body {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 12px;
+  padding: 17px;
+  border: 1px solid #e9e6fd;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(116, 102, 239, 0.12), transparent 42%),
+    #f7f6fe;
 }
 
 .profile-avatar {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  width: 54px;
+  height: 54px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 15px;
   color: #fff;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
-  flex-shrink: 0;
+  background: linear-gradient(145deg, #8375f2, #6251cf);
+  box-shadow: 0 10px 20px rgba(101, 83, 210, 0.22);
 }
 
 .profile-info h3 {
-  font-size: 18px;
-  font-weight: 600;
-  color: #1a1f36;
-  margin: 0 0 4px;
+  margin: 0 0 5px;
+  color: #292d40;
+  font-size: 17px;
+  font-weight: 680;
 }
 
 .profile-info span {
-  font-size: 12px;
-  color: #909399;
+  color: #9498a9;
+  font-size: 11px;
+}
+
+@media (max-width: 1080px) {
+  .app-aside {
+    width: 218px !important;
+  }
+
+  .logo-area {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .workspace-badge {
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+
+  .app-header,
+  .app-main {
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+}
+
+@media (max-width: 820px) {
+  .app-aside {
+    width: 76px !important;
+  }
+
+  .logo-area {
+    justify-content: center;
+    padding: 24px 10px 30px;
+  }
+
+  .logo-copy,
+  .workspace-badge,
+  .menu-label,
+  .sidebar-menu .el-menu-item span,
+  .user-area-label,
+  .user-detail,
+  .dropdown-trigger {
+    display: none;
+  }
+
+  .sidebar-menu .el-menu-item {
+    padding: 0 !important;
+    justify-content: center;
+    gap: 0;
+    margin-left: 10px;
+    margin-right: 10px;
+  }
+
+  .sidebar-menu .el-menu-item:hover {
+    transform: none;
+  }
+
+  .sidebar-menu .el-menu-item.is-active {
+    box-shadow: none;
+  }
+
+  .user-area {
+    padding: 12px 9px 16px;
+  }
+
+  .user-info {
+    justify-content: center;
+    padding: 8px;
+  }
+
+  .user-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .app-header {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .app-main {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-header {
+    height: 66px !important;
+  }
+
+  .header-eyebrow,
+  .runtime-status span:last-child {
+    display: none;
+  }
+
+  .runtime-status {
+    padding: 8px 10px;
+  }
+
+  .app-main {
+    padding-top: 12px;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-main > div {
+    animation: none;
+  }
+
+  .app-aside,
+  .sidebar-menu .el-menu-item {
+    transition: none;
+  }
 }
 </style>

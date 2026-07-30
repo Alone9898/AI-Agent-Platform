@@ -277,9 +277,10 @@ async function handleSend(text: string) {
 
 <style scoped>
 .chat-page {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -289,35 +290,76 @@ async function handleSend(text: string) {
   flex-shrink: 0;
 }
 
+.error-banner :deep(.el-alert) {
+  border: 1px solid #f6d5d2;
+  border-radius: 12px;
+  background: #fff7f6;
+}
+
 .chat-layout {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 292px minmax(0, 1fr);
+  gap: 14px;
   flex: 1;
   min-height: 0;
   height: 100%;
 }
 
 .chat-stage {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
   min-width: 0;
   min-height: 0;
   height: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(224, 226, 235, 0.9);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 18px 45px rgba(31, 35, 60, 0.07);
+  isolation: isolate;
 }
 
-@media (max-width: 1120px) {
+.chat-stage::before {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 32px;
+  right: 32px;
+  height: 1px;
+  content: '';
+  background: linear-gradient(90deg, transparent, rgba(125, 108, 245, 0.65), transparent);
+  pointer-events: none;
+}
+
+@media (max-width: 1180px) {
   .chat-layout {
-    grid-template-columns: 280px minmax(0, 1fr);
+    grid-template-columns: 258px minmax(0, 1fr);
   }
 }
 
 @media (max-width: 960px) {
+  .chat-page {
+    height: auto;
+    overflow: visible;
+  }
+
   .chat-layout {
     grid-template-columns: 1fr;
     min-height: auto;
     height: auto;
+  }
+
+  .chat-stage {
+    min-height: 640px;
+  }
+}
+
+@media (max-width: 620px) {
+  .chat-stage {
+    min-height: 580px;
+    border-radius: 15px;
   }
 }
 </style>
