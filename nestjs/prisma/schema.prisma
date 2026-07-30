@@ -47,6 +47,9 @@ model Skill {
 
   agents AgentSkill[]
 
+  @@index([type])
+  @@index([name])
+  @@index([updatedAt])
   @@map("skills")
 }
 

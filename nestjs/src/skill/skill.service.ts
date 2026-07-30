@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface SkillPreset {
@@ -8,6 +9,15 @@ export interface SkillPreset {
   type: 'prompt' | 'tool' | 'mixed';
   prompt?: string;
   tools?: string; // JSON string
+}
+
+export interface SkillPageQuery {
+  page?: string;
+  pageSize?: string;
+  keyword?: string;
+  type?: string;
+  sortBy?: string;
+  sortOrder?: string;
 }
 
 const SKILL_PRESETS: SkillPreset[] = [
@@ -209,15 +219,66 @@ export class SkillService {
   constructor(private prisma: PrismaService) {}
 
   findAll() {
-    return this.prisma.skill.findMany();
+    return this.prisma.skill.findMany({ orderBy: { updatedAt: 'desc' } });
+  }
+
+  async findPage(query: SkillPageQuery) {
+    const page = Math.max(1, Number.parseInt(query.page || '1', 10) || 1);
+    const pageSize = Math.min(100, Math.max(10, Number.parseInt(query.pageSize || '20', 10) || 20));
+    const keyword = query.keyword?.trim();
+    const type = ['prompt', 'tool', 'mixed'].includes(query.type || '') ? query.type : undefined;
+    const sortBy = ['name', 'createdAt', 'updatedAt'].includes(query.sortBy || '')
+      ? query.sortBy as 'name' | 'createdAt' | 'updatedAt'
+      : 'updatedAt';
+    const sortOrder: Prisma.SortOrder = query.sortOrder === 'asc' ? 'asc' : 'desc';
+
+    const where: Prisma.SkillWhereInput = {
+      ...(type ? { type } : {}),
+      ...(keyword
+        ? {
+            OR: [
+              { name: { contains: keyword } },
+              { description: { contains: keyword } },
+              { prompt: { contains: keyword } },
+            ],
+          }
+        : {}),
+    };
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.skill.findMany({
+        where,
+        orderBy: [{ [sortBy]: sortOrder }, { id: 'desc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.skill.count({ where }),
+    ]);
+
+    return {
+      items,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   findOne(id: number) {
     return this.prisma.skill.findUnique({ where: { id } });
   }
 
-  getPresets() {
-    return SKILL_PRESETS;
+  async getPresets() {
+    const existing = await this.prisma.skill.findMany({
+      where: { name: { in: SKILL_PRESETS.map((preset) => preset.name) } },
+      select: { name: true },
+    });
+    const importedNames = new Set(existing.map((skill) => skill.name));
+
+    return SKILL_PRESETS.map((preset) => ({
+      ...preset,
+      imported: importedNames.has(preset.name),
+    }));
   }
 
   create(data: { name: string; description?: string; type?: string; prompt?: string; tools?: string }) {

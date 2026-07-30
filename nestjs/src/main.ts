@@ -91,6 +91,19 @@ async function bootstrap() {
       // Column already exists, ignore
     }
   }
+
+  const indexes = [
+    `CREATE INDEX IF NOT EXISTS idx_skills_type ON skills(type)`,
+    `CREATE INDEX IF NOT EXISTS idx_skills_name ON skills(name)`,
+    `CREATE INDEX IF NOT EXISTS idx_skills_updated_at ON skills(updated_at)`,
+  ];
+  for (const sql of indexes) {
+    try {
+      await prisma.$executeRawUnsafe(sql);
+    } catch (e) {
+      console.error('Failed to create index:', e.message);
+    }
+  }
   console.log('Database schema ensured successfully');
 
   const port = process.env.PORT || 3000;

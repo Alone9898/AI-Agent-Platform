@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe } from '@nestjs/common';
-import { SkillService } from './skill.service';
+import { Controller, Get, Post, Put, Delete, Body, Param, ParseIntPipe, Query } from '@nestjs/common';
+import { SkillPageQuery, SkillService } from './skill.service';
 
 @Controller('skills')
 export class SkillController {
@@ -7,6 +7,9 @@ export class SkillController {
 
   @Get()
   findAll() { return this.skillService.findAll(); }
+
+  @Get('page')
+  findPage(@Query() query: SkillPageQuery) { return this.skillService.findPage(query); }
 
   @Get('presets')
   getPresets() { return this.skillService.getPresets(); }

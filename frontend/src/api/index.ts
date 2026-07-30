@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: 'http://localhost:3000',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
   timeout: 10000,
 })
 
@@ -52,6 +52,14 @@ export const agentApi = {
 // Skill APIs
 export const skillApi = {
   findAll: () => api.get('/skills'),
+  findPage: (params: {
+    page?: number
+    pageSize?: number
+    keyword?: string
+    type?: string
+    sortBy?: string
+    sortOrder?: 'asc' | 'desc'
+  }) => api.get('/skills/page', { params }),
   findOne: (id: number) => api.get(`/skills/${id}`),
   create: (data: any) => api.post('/skills', data),
   update: (id: number, data: any) => api.put(`/skills/${id}`, data),

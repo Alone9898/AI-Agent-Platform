@@ -110,8 +110,12 @@ export const useAgentStore = defineStore('agent', () => {
 
 export const useSkillStore = defineStore('skill', () => {
   const skills = ref<any[]>([])
+  const pagedSkills = ref<any[]>([])
+  const total = ref(0)
   const loading = ref(false)
+  const pageLoading = ref(false)
   const presets = ref<any[]>([])
+  let pageRequestId = 0
 
   async function fetchSkills() {
     loading.value = true
@@ -129,6 +133,30 @@ export const useSkillStore = defineStore('skill', () => {
     return data
   }
 
+  async function fetchSkillPage(params: {
+    page?: number
+    pageSize?: number
+    keyword?: string
+    type?: string
+    sortBy?: string
+    sortOrder?: 'asc' | 'desc'
+  } = {}) {
+    const requestId = ++pageRequestId
+    pageLoading.value = true
+    try {
+      const { data } = await skillApi.findPage(params)
+      if (requestId === pageRequestId) {
+        pagedSkills.value = data.items
+        total.value = data.total
+      }
+      return data
+    } finally {
+      if (requestId === pageRequestId) {
+        pageLoading.value = false
+      }
+    }
+  }
+
   async function importPreset(preset: any) {
     const { data } = await skillApi.create({
       name: preset.name,
@@ -137,28 +165,45 @@ export const useSkillStore = defineStore('skill', () => {
       prompt: preset.prompt,
       tools: preset.tools,
     })
-    await fetchSkills()
+    skills.value.unshift(data)
+    const importedPreset = presets.value.find((item: any) => item.key === preset.key)
+    if (importedPreset) importedPreset.imported = true
     return data
   }
 
   async function createSkill(payload: any) {
     const { data } = await skillApi.create(payload)
-    await fetchSkills()
+    skills.value.unshift(data)
     return data
   }
 
   async function updateSkill(id: number, payload: any) {
     const { data } = await skillApi.update(id, payload)
-    await fetchSkills()
+    const index = skills.value.findIndex((skill: any) => skill.id === id)
+    if (index !== -1) skills.value[index] = data
     return data
   }
 
   async function deleteSkill(id: number) {
     await skillApi.remove(id)
-    await fetchSkills()
+    skills.value = skills.value.filter((skill: any) => skill.id !== id)
   }
 
-  return { skills, loading, presets, fetchSkills, fetchPresets, importPreset, createSkill, updateSkill, deleteSkill }
+  return {
+    skills,
+    pagedSkills,
+    total,
+    loading,
+    pageLoading,
+    presets,
+    fetchSkills,
+    fetchSkillPage,
+    fetchPresets,
+    importPreset,
+    createSkill,
+    updateSkill,
+    deleteSkill,
+  }
 })
 
 export const useModelStore = defineStore('model', () => {

@@ -2,67 +2,118 @@
   <div class="page-container">
     <div class="page-header">
       <div class="page-header-left">
-        <h2 class="page-title">Skill 管理</h2>
-        <span class="page-desc">定义可复用的技能提示词和工具，供 Agent 绑定使用</span>
+        <h2 class="page-title">技能库</h2>
+        <span class="page-desc">{{ skillStore.total }} 个技能</span>
       </div>
-      <el-button type="primary" :icon="Plus" @click="showCreateDialog()" class="add-btn" round>新增 Skill</el-button>
+      <el-button type="primary" :icon="Plus" @click="showCreateDialog()" class="add-btn">新增技能</el-button>
     </div>
 
-    <!-- 预设技能推荐区 -->
-    <div class="section-header">
-      <h3 class="section-title">常用技能库</h3>
-      <span class="section-hint">点击即可一键添加到你的技能库</span>
-    </div>
-    <div v-loading="presetsLoading" class="preset-grid">
-      <div
-        v-for="preset in skillStore.presets"
-        :key="preset.key"
-        class="preset-card"
-        :class="[isImported(preset.key) ? 'imported' : '', 'preset-type-' + preset.type]"
-        @click="handleImportPreset(preset)"
-      >
-        <div class="preset-icon" :style="{ background: getPresetColor(preset.key) }">
-          <el-icon v-if="preset.type === 'tool'" :size="16"><Setting /></el-icon>
-          <template v-else>{{ preset.name.replace('[工具] ', '').charAt(0) }}</template>
+    <section class="preset-section">
+      <div class="section-header">
+        <div class="section-heading">
+          <h3 class="section-title">推荐模板</h3>
+          <span class="section-hint">{{ skillStore.presets.length }} 个可用</span>
         </div>
-        <div class="preset-info">
-          <div class="preset-name">
-            {{ preset.name }}
-            <el-tag v-if="preset.type === 'tool'" size="small" type="warning" effect="plain" round class="type-tag">工具</el-tag>
-            <el-tag v-if="isImported(preset.key)" size="small" type="success" effect="plain" round class="imported-tag">已添加</el-tag>
+        <el-button
+          v-if="skillStore.presets.length > presetPreviewSize"
+          text
+          :icon="presetsExpanded ? ArrowUp : ArrowDown"
+          @click="presetsExpanded = !presetsExpanded"
+        >
+          {{ presetsExpanded ? '收起' : '查看全部' }}
+        </el-button>
+      </div>
+      <div v-loading="presetsLoading" class="preset-grid">
+        <div
+          v-for="preset in visiblePresets"
+          :key="preset.key"
+          class="preset-card"
+          :class="[isImported(preset) ? 'imported' : '', 'preset-type-' + preset.type]"
+          role="button"
+          :tabindex="isImported(preset) ? -1 : 0"
+          :aria-disabled="isImported(preset)"
+          @click="handleImportPreset(preset)"
+          @keydown.enter="handleImportPreset(preset)"
+        >
+          <div class="preset-icon" :style="{ background: getPresetColor(preset.key) }">
+            <el-icon v-if="preset.type === 'tool'" :size="16"><Setting /></el-icon>
+            <template v-else>{{ preset.name.replace('[工具] ', '').charAt(0) }}</template>
           </div>
-          <div class="preset-desc">{{ preset.description }}</div>
+          <div class="preset-info">
+            <div class="preset-name">
+              <span class="preset-name-text">{{ preset.name }}</span>
+              <el-tag v-if="preset.type === 'tool'" size="small" type="warning" effect="plain" class="type-tag">工具</el-tag>
+              <el-tag v-if="isImported(preset)" size="small" type="success" effect="plain" class="imported-tag">已添加</el-tag>
+            </div>
+            <div class="preset-desc">{{ preset.description }}</div>
+          </div>
+          <div class="preset-action">
+            <el-icon v-if="importingKey === preset.key" class="is-loading" :size="16"><Loading /></el-icon>
+            <el-icon v-else-if="isImported(preset)" :size="16" color="#67c23a"><Check /></el-icon>
+            <el-icon v-else :size="16" color="#909399"><Plus /></el-icon>
+          </div>
         </div>
-        <div class="preset-action">
-          <el-icon v-if="isImported(preset.key)" :size="16" color="#67c23a"><Check /></el-icon>
-          <el-icon v-else :size="16" color="#c0c4cc"><Plus /></el-icon>
-        </div>
+      </div>
+    </section>
+
+    <div class="library-header">
+      <div class="section-heading">
+        <h3 class="section-title">全部技能</h3>
+        <span class="result-count">{{ resultSummary }}</span>
+      </div>
+      <div class="library-controls">
+        <el-input
+          v-model="keyword"
+          :prefix-icon="Search"
+          clearable
+          class="search-input"
+          placeholder="搜索名称、描述或提示词"
+          @keyup.enter="submitSearch"
+        />
+        <el-radio-group v-model="typeFilter" class="type-filter">
+          <el-radio-button value="">全部</el-radio-button>
+          <el-radio-button value="prompt">提示词</el-radio-button>
+          <el-radio-button value="tool">工具</el-radio-button>
+          <el-radio-button value="mixed">混合</el-radio-button>
+        </el-radio-group>
+        <el-select v-model="sortValue" class="sort-select" aria-label="技能排序">
+          <el-option label="最近更新" value="updatedAt:desc" />
+          <el-option label="最新创建" value="createdAt:desc" />
+          <el-option label="名称 A-Z" value="name:asc" />
+        </el-select>
       </div>
     </div>
 
-    <!-- 已有技能列表 -->
-    <div class="section-header" style="margin-top: 28px">
-      <h3 class="section-title">我的技能</h3>
-      <span class="section-hint">共 {{ skillStore.skills.length }} 个技能</span>
-    </div>
     <div class="table-card">
-      <el-table :data="skillStore.skills" v-loading="skillStore.loading" class="data-table">
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="name" label="名称" min-width="140">
+      <el-table
+        :data="skillStore.pagedSkills"
+        :row-key="(row: any) => row.id"
+        v-loading="skillStore.pageLoading"
+        class="data-table"
+      >
+        <el-table-column prop="id" label="ID" width="72" />
+        <el-table-column prop="name" label="名称" min-width="160">
           <template #default="{ row }">
             <span class="name-cell">{{ row.name }}</span>
           </template>
         </el-table-column>
         <el-table-column prop="type" label="类型" width="90" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row.type === 'tool'" type="warning" size="small" effect="light" round>工具</el-tag>
-            <el-tag v-else-if="row.type === 'mixed'" size="small" effect="light" round>混合</el-tag>
-            <el-tag v-else type="info" size="small" effect="light" round>提示词</el-tag>
+            <el-tag v-if="row.type === 'tool'" type="warning" size="small" effect="light">工具</el-tag>
+            <el-tag v-else-if="row.type === 'mixed'" size="small" effect="light">混合</el-tag>
+            <el-tag v-else type="info" size="small" effect="light">提示词</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="description" label="描述" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="prompt" label="提示词" show-overflow-tooltip min-width="200" />
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.description || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="内容" min-width="220" show-overflow-tooltip>
+          <template #default="{ row }">{{ getContentSummary(row) }}</template>
+        </el-table-column>
+        <el-table-column label="更新时间" width="160">
+          <template #default="{ row }">{{ formatDate(row.updatedAt) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button size="small" type="primary" link @click="showEditDialog(row)">
               <el-icon><Edit /></el-icon> 编辑
@@ -76,11 +127,28 @@
             </el-popconfirm>
           </template>
         </el-table-column>
+        <template #empty>
+          <el-empty :description="hasFilters ? '没有匹配的技能' : '暂无技能'" :image-size="72">
+            <el-button v-if="hasFilters" @click="clearFilters">清除筛选</el-button>
+            <el-button v-else type="primary" :icon="Plus" @click="showCreateDialog()">新增技能</el-button>
+          </el-empty>
+        </template>
       </el-table>
+      <div v-if="skillStore.total > 0" class="pagination-wrap">
+        <el-pagination
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :page-sizes="[20, 50, 100]"
+          :total="skillStore.total"
+          layout="total, sizes, prev, pager, next"
+          @current-change="loadSkills()"
+          @size-change="handlePageSizeChange"
+        />
+      </div>
     </div>
 
     <!-- 新增/编辑对话框 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑 Skill' : '新增 Skill'" width="620px" destroy-on-close>
+    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑技能' : '新增技能'" width="min(620px, calc(100vw - 32px))" destroy-on-close>
       <!-- 类型选择 -->
       <div class="type-tabs">
         <el-radio-group v-model="form.type" size="default">
@@ -150,16 +218,28 @@
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSave">保存</el-button>
+        <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus, Edit, Delete, Check, Setting, Document, Link } from '@element-plus/icons-vue'
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  Delete,
+  Document,
+  Edit,
+  Link,
+  Loading,
+  Plus,
+  Search,
+  Setting,
+} from '@element-plus/icons-vue'
 import { useSkillStore } from '@/stores'
 
 const skillStore = useSkillStore()
@@ -167,6 +247,17 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const editId = ref<number>(0)
 const presetsLoading = ref(false)
+const presetsExpanded = ref(false)
+const presetPreviewSize = 6
+const importingKey = ref('')
+const saving = ref(false)
+const keyword = ref('')
+const typeFilter = ref('')
+const sortValue = ref('updatedAt:desc')
+const currentPage = ref(1)
+const pageSize = ref(20)
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+let resettingFilters = false
 
 interface ToolItem {
   name: string
@@ -185,14 +276,13 @@ const emptyForm = () => ({
 
 const form = ref(emptyForm())
 
-const importedKeys = computed(() => {
-  const names = new Set(skillStore.skills.map((s: any) => s.name))
-  return new Set(
-    skillStore.presets
-      .filter((p: any) => names.has(p.name))
-      .map((p: any) => p.key)
-  )
-})
+const visiblePresets = computed(() =>
+  presetsExpanded.value ? skillStore.presets : skillStore.presets.slice(0, presetPreviewSize)
+)
+const hasFilters = computed(() => Boolean(keyword.value.trim() || typeFilter.value))
+const resultSummary = computed(() =>
+  hasFilters.value ? `找到 ${skillStore.total} 个` : `共 ${skillStore.total} 个`
+)
 
 const PRESET_COLORS = [
   '#667eea', '#f56c6c', '#e6a23c', '#67c23a',
@@ -215,8 +305,68 @@ function getPresetColor(key: string): string {
   return PRESET_COLORS[hashKey(key)]
 }
 
-function isImported(key: string): boolean {
-  return importedKeys.value.has(key)
+function isImported(preset: any): boolean {
+  return Boolean(preset.imported)
+}
+
+async function loadSkills(resetPage = false) {
+  if (resetPage) currentPage.value = 1
+  const [sortBy, sortOrder] = sortValue.value.split(':')
+  await skillStore.fetchSkillPage({
+    page: currentPage.value,
+    pageSize: pageSize.value,
+    keyword: keyword.value.trim() || undefined,
+    type: typeFilter.value || undefined,
+    sortBy,
+    sortOrder: sortOrder as 'asc' | 'desc',
+  })
+}
+
+function clearFilters() {
+  resettingFilters = true
+  if (searchTimer) clearTimeout(searchTimer)
+  keyword.value = ''
+  typeFilter.value = ''
+  nextTick(() => {
+    resettingFilters = false
+    loadSkills(true)
+  })
+}
+
+function submitSearch() {
+  if (searchTimer) clearTimeout(searchTimer)
+  loadSkills(true)
+}
+
+function handlePageSizeChange() {
+  loadSkills(true)
+}
+
+function getContentSummary(skill: any): string {
+  if (skill.type !== 'tool') return skill.prompt || '-'
+  if (!skill.tools) return '-'
+  try {
+    const tools = JSON.parse(skill.tools)
+    if (!Array.isArray(tools) || tools.length === 0) return '-'
+    const names = tools.map((tool: any) => tool.name).filter(Boolean)
+    return names.length ? names.join('、') : `${tools.length} 个工具`
+  } catch {
+    return '工具配置格式异常'
+  }
+}
+
+function formatDate(value: string): string {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '-'
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
 }
 
 function parseToolsFromJson(toolsStr: string): ToolItem[] {
@@ -261,13 +411,29 @@ function toolListToJson(toolList: ToolItem[]): { json: string; ok: boolean } {
 }
 
 onMounted(async () => {
-  skillStore.fetchSkills()
+  loadSkills()
   presetsLoading.value = true
   try {
     await skillStore.fetchPresets()
   } finally {
     presetsLoading.value = false
   }
+})
+
+watch(keyword, () => {
+  if (resettingFilters) return
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => loadSkills(true), 300)
+})
+
+watch([typeFilter, sortValue], () => {
+  if (resettingFilters) return
+  if (searchTimer) clearTimeout(searchTimer)
+  loadSkills(true)
+})
+
+onBeforeUnmount(() => {
+  if (searchTimer) clearTimeout(searchTimer)
 })
 
 function showCreateDialog() {
@@ -291,15 +457,20 @@ function showEditDialog(row: any) {
 }
 
 async function handleImportPreset(preset: any) {
-  if (isImported(preset.key)) {
+  if (isImported(preset) || importingKey.value) {
+    if (!isImported(preset)) return
     ElMessage.info('该技能已存在')
     return
   }
+  importingKey.value = preset.key
   try {
     await skillStore.importPreset(preset)
+    await Promise.allSettled([loadSkills(true), skillStore.fetchPresets()])
     ElMessage.success(`已添加「${preset.name}」`)
   } catch {
     ElMessage.error('添加失败')
+  } finally {
+    importingKey.value = ''
   }
 }
 
@@ -317,10 +488,17 @@ function removeTool(index: number) {
 }
 
 async function handleSave() {
+  const name = form.value.name.trim()
+  if (!name) {
+    ElMessage.warning('请输入技能名称')
+    return
+  }
+
+  saving.value = true
   try {
     const payload: any = {
-      name: form.value.name,
-      description: form.value.description,
+      name,
+      description: form.value.description.trim(),
       type: form.value.type,
     }
 
@@ -349,14 +527,20 @@ async function handleSave() {
       ElMessage.success('创建成功')
     }
     dialogVisible.value = false
+    await Promise.allSettled([loadSkills(!isEdit.value), skillStore.fetchPresets()])
   } catch {
     ElMessage.error('操作失败')
+  } finally {
+    saving.value = false
   }
 }
 
 async function handleDelete(id: number) {
   try {
+    const shouldGoBack = skillStore.pagedSkills.length === 1 && currentPage.value > 1
     await skillStore.deleteSkill(id)
+    if (shouldGoBack) currentPage.value -= 1
+    await Promise.allSettled([loadSkills(), skillStore.fetchPresets()])
     ElMessage.success('删除成功')
   } catch {
     ElMessage.error('删除失败')
@@ -367,6 +551,7 @@ async function handleDelete(id: number) {
 <style scoped>
 .page-container {
   max-width: 1400px;
+  width: 100%;
 }
 
 .page-header {
@@ -398,12 +583,22 @@ async function handleDelete(id: number) {
   font-weight: 500;
 }
 
-/* ========== 分区标题 ========== */
+.preset-section {
+  margin-bottom: 30px;
+}
+
 .section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.section-heading {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  margin-bottom: 14px;
+  min-width: 0;
 }
 
 .section-title {
@@ -418,11 +613,11 @@ async function handleDelete(id: number) {
   color: #b0b0b0;
 }
 
-/* ========== 预设技能网格 ========== */
 .preset-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
+  min-height: 68px;
 }
 
 .preset-card {
@@ -431,10 +626,16 @@ async function handleDelete(id: number) {
   gap: 12px;
   padding: 14px 16px;
   background: #fff;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid #f0f0f0;
   cursor: pointer;
-  transition: all 0.25s ease;
+  min-width: 0;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.preset-card:focus-visible {
+  outline: 2px solid #409eff;
+  outline-offset: 2px;
 }
 
 .preset-card:hover {
@@ -451,16 +652,18 @@ async function handleDelete(id: number) {
 .preset-card.imported {
   background: #f6ffed;
   border-color: #b7eb8f;
+  cursor: default;
 }
 
 .preset-card.imported:hover {
   box-shadow: 0 2px 8px rgba(103, 194, 58, 0.15);
+  transform: none;
 }
 
 .preset-icon {
   width: 38px;
   height: 38px;
-  border-radius: 10px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -482,6 +685,12 @@ async function handleDelete(id: number) {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.preset-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .type-tag {
@@ -511,17 +720,51 @@ async function handleDelete(id: number) {
   flex-shrink: 0;
 }
 
-/* ========== 已有技能表格 ========== */
+.library-header {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.result-count {
+  font-size: 12px;
+  color: #909399;
+}
+
+.library-controls {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto 132px;
+  align-items: center;
+  gap: 12px;
+}
+
+.search-input {
+  max-width: 460px;
+}
+
+.sort-select {
+  width: 132px;
+}
+
 .table-card {
   background: #fff;
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 4px 0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
 }
 
 .name-cell {
   font-weight: 500;
   color: #303133;
+}
+
+.pagination-wrap {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 16px 12px;
+  border-top: 1px solid #f2f3f5;
 }
 
 /* ========== 对话框 ========== */
@@ -587,5 +830,63 @@ async function handleDelete(id: number) {
 
 :deep(.data-table) {
   --el-table-border-color: #f0f0f0;
+}
+
+:deep(.data-table .el-table__row) {
+  height: 54px;
+}
+
+@media (max-width: 900px) {
+  .library-controls {
+    grid-template-columns: 1fr 132px;
+  }
+
+  .search-input {
+    max-width: none;
+  }
+
+  .type-filter {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .page-header {
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .page-desc {
+    display: none;
+  }
+
+  .preset-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .library-controls {
+    grid-template-columns: minmax(0, 1fr) 124px;
+    gap: 10px;
+  }
+
+  .type-filter {
+    display: flex;
+    width: 100%;
+  }
+
+  :deep(.type-filter .el-radio-button) {
+    flex: 1;
+  }
+
+  :deep(.type-filter .el-radio-button__inner) {
+    width: 100%;
+    padding-inline: 8px;
+  }
+
+  .pagination-wrap {
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
 }
 </style>
