@@ -12,7 +12,7 @@
           <el-icon :size="28"><Cpu /></el-icon>
         </div>
         <h1 class="login-title">AI Agent Platform</h1>
-        <p class="login-subtitle">智能代理管理平台</p>
+        <p class="login-subtitle">智能体管理平台</p>
       </div>
 
       <el-form
@@ -43,6 +43,39 @@
           />
         </el-form-item>
 
+        <el-divider content-position="center">连接设置</el-divider>
+
+        <el-form-item class="connection-item">
+          <el-input
+            v-model="backendUrl"
+            placeholder="后端地址，例如 http://localhost:3000"
+            size="large"
+          >
+            <template #prefix>
+              <el-icon><Link /></el-icon>
+            </template>
+          </el-input>
+        </el-form-item>
+
+        <div class="connection-actions">
+          <el-button plain @click="resetBackendUrl" :disabled="savingBackendUrl || testingBackend">
+            恢复默认
+          </el-button>
+          <el-button @click="testBackendConnection" :loading="testingBackend">
+            测试连接
+          </el-button>
+          <el-button type="primary" @click="saveBackendUrl" :loading="savingBackendUrl">
+            保存地址
+          </el-button>
+        </div>
+
+        <p class="backend-hint">
+          当前后端地址：{{ currentBackendUrl }}
+          <span v-if="backendUrl !== currentBackendUrl" class="backend-hint-ghost">
+            · 未保存的修改会在登录时自动应用
+          </span>
+        </p>
+
         <el-form-item>
           <el-button
             type="primary"
@@ -57,23 +90,35 @@
       </el-form>
 
       <div class="login-footer">
-        <span>默认账号: admin / 123456</span>
+        <span>默认账号：admin / 123456</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User, Lock, Cpu } from '@element-plus/icons-vue'
+import { User, Lock, Cpu, Link } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores'
+import {
+  getApiBaseUrl,
+  getDefaultApiBaseUrl,
+  getApiErrorMessage,
+  resetApiBaseUrl,
+  setApiBaseUrl,
+  systemApi,
+} from '@/api'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const formRef = ref()
 const loading = ref(false)
+const testingBackend = ref(false)
+const savingBackendUrl = ref(false)
+const backendUrl = ref(getApiBaseUrl())
+const currentBackendUrl = ref(getApiBaseUrl())
 
 const form = reactive({
   username: '',
@@ -85,21 +130,106 @@ const rules = {
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
 }
 
+function syncBackendUrl(value: string) {
+  backendUrl.value = value
+  currentBackendUrl.value = value
+}
+
+function persistBackendUrl() {
+  const url = backendUrl.value.trim()
+  if (!url) {
+    const fallback = resetApiBaseUrl()
+    syncBackendUrl(fallback)
+    return fallback
+  }
+  const saved = setApiBaseUrl(url)
+  syncBackendUrl(saved)
+  return saved
+}
+
+async function saveBackendUrl() {
+  savingBackendUrl.value = true
+  try {
+    persistBackendUrl()
+    ElMessage.success('已保存后端地址')
+  } catch (error: any) {
+    ElMessage.error(error?.message || '保存后端地址失败')
+  } finally {
+    savingBackendUrl.value = false
+  }
+}
+
+async function resetBackendUrl() {
+  const fallback = resetApiBaseUrl()
+  syncBackendUrl(fallback)
+  ElMessage.success('已恢复默认地址')
+}
+
+async function testBackendConnection() {
+  testingBackend.value = true
+  try {
+    persistBackendUrl()
+    await systemApi.health()
+    ElMessage.success('后端连接正常')
+  } catch (error: any) {
+    const shouldFallback = !error?.response && getApiBaseUrl() !== getDefaultApiBaseUrl()
+
+    if (shouldFallback) {
+      const fallback = resetApiBaseUrl()
+      syncBackendUrl(fallback)
+      try {
+        await systemApi.health()
+        ElMessage.success('后端连接正常，已切换到本地默认地址')
+        return
+      } catch (fallbackError: any) {
+        ElMessage.error(getApiErrorMessage(fallbackError))
+        return
+      }
+    }
+
+    ElMessage.error(getApiErrorMessage(error))
+  } finally {
+    testingBackend.value = false
+  }
+}
+
 async function handleLogin() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
+
+  persistBackendUrl()
 
   loading.value = true
   try {
     await authStore.login(form.username, form.password)
     ElMessage.success('登录成功')
     router.push('/agents')
-  } catch (err: any) {
-    ElMessage.error(err.message || '登录失败')
+  } catch (error: any) {
+    const shouldFallback = !error?.response && getApiBaseUrl() !== getDefaultApiBaseUrl()
+
+    if (shouldFallback) {
+      const fallback = resetApiBaseUrl()
+      syncBackendUrl(fallback)
+      try {
+        await authStore.login(form.username, form.password)
+        ElMessage.success('登录成功，已切换到本地默认地址')
+        router.push('/agents')
+        return
+      } catch (fallbackError: any) {
+        ElMessage.error(getApiErrorMessage(fallbackError))
+        return
+      }
+    }
+
+    ElMessage.error(getApiErrorMessage(error))
   } finally {
     loading.value = false
   }
 }
+
+onMounted(() => {
+  syncBackendUrl(getApiBaseUrl())
+})
 </script>
 
 <style scoped>
@@ -155,13 +285,20 @@ async function handleLogin() {
 }
 
 @keyframes float {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -30px) scale(1.05); }
-  66% { transform: translate(-20px, 20px) scale(0.95); }
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(30px, -30px) scale(1.05);
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
 }
 
 .login-card {
-  width: 400px;
+  width: 440px;
   background: #fff;
   border-radius: 20px;
   padding: 40px 36px 32px;
@@ -172,13 +309,19 @@ async function handleLogin() {
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .login-header {
   text-align: center;
-  margin-bottom: 32px;
+  margin-bottom: 28px;
 }
 
 .login-logo {
@@ -224,6 +367,31 @@ async function handleLogin() {
 
 .login-form :deep(.el-input__wrapper.is-focus) {
   box-shadow: 0 0 0 1px #667eea inset;
+}
+
+.connection-item {
+  margin-bottom: 10px;
+}
+
+.connection-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.connection-actions .el-button {
+  flex: 1;
+}
+
+.backend-hint {
+  margin: 0 0 18px;
+  font-size: 12px;
+  color: #8a94a6;
+  line-height: 1.5;
+}
+
+.backend-hint-ghost {
+  color: #a0a6b8;
 }
 
 .login-btn {

@@ -3,12 +3,11 @@
     <div class="page-header">
       <div class="page-header-left">
         <h2 class="page-title">系统设置</h2>
-        <span class="page-desc">配置应用的全局参数与系统功能</span>
+        <span class="page-desc">管理应用的全局参数、连接状态和基础服务</span>
       </div>
     </div>
 
     <div class="settings-grid">
-      <!-- 基础设置卡片 -->
       <div class="settings-card">
         <div class="card-header">
           <el-icon class="card-icon" :size="20"><Setting /></el-icon>
@@ -17,7 +16,7 @@
         <div class="card-body">
           <div class="setting-row">
             <div class="setting-info">
-              <span class="setting-label">开机自启</span>
+              <span class="setting-label">开机自启动</span>
               <span class="setting-hint">{{ autoStart ? '已开启开机自启动' : '已关闭开机自启动' }}</span>
             </div>
             <el-switch v-model="autoStart" @change="handleAutoStartChange" />
@@ -33,11 +32,10 @@
         </div>
       </div>
 
-      <!-- 系统信息卡片 -->
       <div class="settings-card">
         <div class="card-header">
           <el-icon class="card-icon" :size="20"><Monitor /></el-icon>
-          <h3 class="card-title">系统信息</h3>
+          <h3 class="card-title">连接与服务</h3>
         </div>
         <div class="card-body">
           <div class="setting-row">
@@ -52,8 +50,39 @@
           <el-divider />
           <div class="setting-row">
             <div class="setting-info">
-              <span class="setting-label">检查更新</span>
-              <span class="setting-hint">{{ updateStatus || '检查是否有新版本' }}</span>
+              <span class="setting-label">API 地址</span>
+              <span class="setting-hint">前端请求后端接口的基础地址</span>
+            </div>
+            <el-input v-model="backendUrl" class="setting-input" placeholder="http://localhost:3000" />
+          </div>
+          <div class="setting-actions">
+            <el-button plain @click="resetBackendUrl" :disabled="savingBackendUrl || testingBackend">
+              恢复默认
+            </el-button>
+            <el-button @click="testBackendConnection" :loading="testingBackend">
+              测试连接
+            </el-button>
+            <el-button type="primary" @click="saveBackendUrl" :loading="savingBackendUrl">
+              保存地址
+            </el-button>
+          </div>
+          <div class="backend-status">
+            当前地址：{{ currentBackendUrl }}
+            <span class="backend-status-muted">· {{ backendHealthText }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="card-header">
+          <el-icon class="card-icon" :size="20"><RefreshRight /></el-icon>
+          <h3 class="card-title">检查更新</h3>
+        </div>
+        <div class="card-body">
+          <div class="setting-row">
+            <div class="setting-info">
+              <span class="setting-label">当前更新状态</span>
+              <span class="setting-hint">{{ updateStatus || '尚未检查更新' }}</span>
             </div>
             <el-button type="primary" size="small" @click="checkUpdate" :loading="checking">
               检查更新
@@ -66,31 +95,108 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { invoke } from '@tauri-apps/api/core'
+import { getApiBaseUrl, getApiErrorMessage, resetApiBaseUrl, setApiBaseUrl, systemApi } from '@/api'
 
 const autoStart = ref(false)
 const updateStatus = ref('')
-const backendStatus = ref('running')
+const backendStatus = ref<'running' | 'stopped'>('running')
+const backendHealth = ref<'unknown' | 'healthy' | 'unhealthy'>('unknown')
+const backendHealthText = computed(() => {
+  if (backendHealth.value === 'healthy') return '接口连接正常'
+  if (backendHealth.value === 'unhealthy') return '接口暂时不可达'
+  return '尚未测试连接'
+})
 const dataDir = ref('')
 const checking = ref(false)
+const backendUrl = ref(getApiBaseUrl())
+const currentBackendUrl = ref(getApiBaseUrl())
+const testingBackend = ref(false)
+const savingBackendUrl = ref(false)
 
 onMounted(async () => {
   try {
     dataDir.value = await invoke<string>('get_data_dir')
-    backendStatus.value = await invoke<boolean>('check_sidecar_status') ? 'running' : 'stopped'
+    backendStatus.value = (await invoke<boolean>('check_sidecar_status')) ? 'running' : 'stopped'
   } catch {
     dataDir.value = '开发模式'
     backendStatus.value = 'stopped'
   }
+
+  backendUrl.value = getApiBaseUrl()
+  currentBackendUrl.value = backendUrl.value
+  await checkBackendHealth()
 })
 
 async function handleAutoStartChange(val: boolean) {
   try {
-    ElMessage.success(val ? '已开启开机自启' : '已关闭开机自启')
+    ElMessage.success(val ? '已开启开机自启动' : '已关闭开机自启动')
   } catch {
     ElMessage.error('设置失败')
+  }
+}
+
+function persistBackendUrl() {
+  const value = backendUrl.value.trim()
+  if (!value) {
+    const fallback = resetApiBaseUrl()
+    backendUrl.value = fallback
+    currentBackendUrl.value = fallback
+    return fallback
+  }
+  const saved = setApiBaseUrl(value)
+  backendUrl.value = saved
+  currentBackendUrl.value = saved
+  return saved
+}
+
+async function saveBackendUrl() {
+  savingBackendUrl.value = true
+  try {
+    persistBackendUrl()
+    await checkBackendHealth()
+    ElMessage.success('已保存接口地址')
+  } catch (error: any) {
+    ElMessage.error(getApiErrorMessage(error))
+  } finally {
+    savingBackendUrl.value = false
+  }
+}
+
+async function resetBackendUrl() {
+  const fallback = resetApiBaseUrl()
+  backendUrl.value = fallback
+  currentBackendUrl.value = fallback
+  await checkBackendHealth()
+  ElMessage.success('已恢复默认接口地址')
+}
+
+async function checkBackendHealth() {
+  testingBackend.value = true
+  try {
+    await systemApi.health()
+    backendHealth.value = 'healthy'
+  } catch {
+    backendHealth.value = 'unhealthy'
+  } finally {
+    testingBackend.value = false
+  }
+}
+
+async function testBackendConnection() {
+  testingBackend.value = true
+  try {
+    persistBackendUrl()
+    await systemApi.health()
+    backendHealth.value = 'healthy'
+    ElMessage.success('后端连接正常')
+  } catch (error: any) {
+    backendHealth.value = 'unhealthy'
+    ElMessage.error(getApiErrorMessage(error))
+  } finally {
+    testingBackend.value = false
   }
 }
 
@@ -182,6 +288,7 @@ async function checkUpdate() {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
 }
 
 .setting-info {
@@ -202,10 +309,49 @@ async function checkUpdate() {
 }
 
 .setting-input {
-  width: 200px;
+  width: 240px;
+}
+
+.setting-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.setting-actions .el-button {
+  flex: 1;
+}
+
+.backend-status {
+  margin-top: 14px;
+  font-size: 12px;
+  color: #8a94a6;
+}
+
+.backend-status-muted {
+  color: #b0b7c8;
 }
 
 :deep(.el-divider) {
   margin: 16px 0;
+}
+
+@media (max-width: 960px) {
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .setting-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .setting-input {
+    width: 100%;
+  }
+
+  .setting-actions {
+    flex-direction: column;
+  }
 }
 </style>

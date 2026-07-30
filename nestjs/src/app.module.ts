@@ -5,9 +5,11 @@ import { SkillModule } from './skill/skill.module';
 import { ModelModule } from './model/model.module';
 import { AuthModule } from './auth/auth.module';
 import { ChatModule } from './chat/chat.module';
+import { HealthController } from './health/health.controller';
 
 @Module({
   imports: [AuthModule, AgentModule, SkillModule, ModelModule, ChatModule],
+  controllers: [HealthController],
   providers: [PrismaService],
   exports: [PrismaService],
 })

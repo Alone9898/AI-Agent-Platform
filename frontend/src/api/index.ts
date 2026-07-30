@@ -1,33 +1,112 @@
 import axios from 'axios'
 
+const API_BASE_URL_STORAGE_KEY = 'app:api-base-url'
+const DEFAULT_API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.trim() || 'http://localhost:3000'
+
+function normalizeBaseUrl(value: string): string {
+  return value.trim().replace(/\/+$/, '')
+}
+
+function readStorage(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function writeStorage(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    // Ignore storage failures in restricted environments.
+  }
+}
+
+function removeStorage(key: string) {
+  try {
+    localStorage.removeItem(key)
+  } catch {
+    // Ignore storage failures in restricted environments.
+  }
+}
+
+export function getDefaultApiBaseUrl(): string {
+  return DEFAULT_API_BASE_URL
+}
+
+export function getApiBaseUrl(): string {
+  const stored = readStorage(API_BASE_URL_STORAGE_KEY)?.trim()
+  return stored ? normalizeBaseUrl(stored) : DEFAULT_API_BASE_URL
+}
+
+export function setApiBaseUrl(baseUrl: string): string {
+  const normalized = normalizeBaseUrl(baseUrl)
+  if (!normalized) {
+    removeStorage(API_BASE_URL_STORAGE_KEY)
+    return getApiBaseUrl()
+  }
+  writeStorage(API_BASE_URL_STORAGE_KEY, normalized)
+  return normalized
+}
+
+export function resetApiBaseUrl(): string {
+  removeStorage(API_BASE_URL_STORAGE_KEY)
+  return getApiBaseUrl()
+}
+
+export function getApiErrorMessage(error: any): string {
+  const baseUrl = getApiBaseUrl()
+  const responseMessage =
+    error?.response?.data?.message ||
+    error?.response?.data?.error ||
+    error?.response?.data?.msg
+
+  if (typeof responseMessage === 'string' && responseMessage.trim()) {
+    return responseMessage.trim()
+  }
+
+  if (error?.code === 'ECONNABORTED') {
+    return `请求超时，请检查后端是否运行在 ${baseUrl}`
+  }
+
+  if (!error?.response) {
+    return `无法连接到后端 ${baseUrl}，请确认后端已启动或接口地址是否正确`
+  }
+
+  return error?.message || '请求失败'
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
+  baseURL: getApiBaseUrl(),
   timeout: 120000,
 })
 
-// 请求拦截器：自动附加 token
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token')
+  config.baseURL = getApiBaseUrl()
+
+  const token = readStorage('auth_token')
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+    const headers = (config.headers || {}) as Record<string, any>
+    headers.Authorization = `Bearer ${token}`
+    config.headers = headers as any
   }
+
   return config
 })
 
-// 响应拦截器：401 自动跳转登录
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401) {
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('auth_user')
+      removeStorage('auth_token')
+      removeStorage('auth_user')
       window.location.hash = '#/login'
     }
     return Promise.reject(err)
-  }
+  },
 )
 
-// Auth APIs (预留接口，当前使用 localStorage 模拟)
 export const authApi = {
   login: (username: string, password: string) => api.post('/auth/login', { username, password }),
   getMe: () => api.get('/auth/me'),
@@ -37,7 +116,10 @@ export const authApi = {
   logout: () => api.post('/auth/logout'),
 }
 
-// Agent APIs
+export const systemApi = {
+  health: () => api.get('/health'),
+}
+
 export const agentApi = {
   findAll: () => api.get('/agents'),
   findOne: (id: number) => api.get(`/agents/${id}`),
@@ -49,7 +131,6 @@ export const agentApi = {
     api.post(`/agents/${id}/model`, { modelId }),
 }
 
-// Skill APIs
 export const skillApi = {
   findAll: () => api.get('/skills'),
   findPage: (params: {
@@ -67,7 +148,6 @@ export const skillApi = {
   getPresets: () => api.get('/skills/presets'),
 }
 
-// Model APIs
 export const modelApi = {
   findAll: () => api.get('/models'),
   findOne: (id: number) => api.get(`/models/${id}`),
@@ -77,7 +157,6 @@ export const modelApi = {
   getProviderPresets: () => api.get('/models/presets/providers'),
 }
 
-// Chat APIs
 export const chatApi = {
   sendMessage: (data: {
     agentId: number
