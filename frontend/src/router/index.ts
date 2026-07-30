@@ -19,6 +19,11 @@ const router = createRouter({
       component: () => import('@/views/AgentManage.vue'),
     },
     {
+      path: '/chat',
+      name: 'Chat',
+      component: () => import('@/views/Chat.vue'),
+    },
+    {
       path: '/skills',
       name: 'Skills',
       component: () => import('@/views/SkillManage.vue'),

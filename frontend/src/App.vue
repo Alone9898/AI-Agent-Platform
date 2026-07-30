@@ -19,10 +19,14 @@
         router
         class="sidebar-menu"
       >
-        <el-menu-item index="/agents">
-          <el-icon><User /></el-icon>
-          <span>Agent 管理</span>
-        </el-menu-item>
+          <el-menu-item index="/chat">
+            <el-icon><ChatDotRound /></el-icon>
+            <span>对话系统</span>
+          </el-menu-item>
+          <el-menu-item index="/agents">
+            <el-icon><User /></el-icon>
+            <span>Agent 管理</span>
+          </el-menu-item>
         <el-menu-item index="/skills">
           <el-icon><MagicStick /></el-icon>
           <span>Skill 管理</span>
@@ -116,7 +120,7 @@
 import { computed, ref, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Cpu, User, MagicStick, Setting, Lock, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
+import { Cpu, User, MagicStick, Setting, Lock, ArrowDown, SwitchButton, ChatDotRound } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores'
 
 const route = useRoute()

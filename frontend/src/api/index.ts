@@ -2,7 +2,7 @@ import axios from 'axios'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
-  timeout: 10000,
+  timeout: 120000,
 })
 
 // 请求拦截器：自动附加 token
@@ -75,6 +75,16 @@ export const modelApi = {
   update: (id: number, data: any) => api.put(`/models/${id}`, data),
   remove: (id: number) => api.delete(`/models/${id}`),
   getProviderPresets: () => api.get('/models/presets/providers'),
+}
+
+// Chat APIs
+export const chatApi = {
+  sendMessage: (data: {
+    agentId: number
+    message: string
+    conversationId?: string
+    messages?: Array<{ role: 'user' | 'assistant'; content: string }>
+  }) => api.post('/chat', data),
 }
 
 export default api

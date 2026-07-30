@@ -67,6 +67,24 @@ async function bootstrap() {
       FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
       FOREIGN KEY (skill_id) REFERENCES skills(id) ON DELETE CASCADE
     )`,
+    `CREATE TABLE IF NOT EXISTS conversations (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id INTEGER NOT NULL,
+      agent_id INTEGER NOT NULL,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS conversation_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      conversation_id TEXT NOT NULL,
+      role TEXT NOT NULL,
+      content TEXT NOT NULL,
+      steps TEXT,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+    )`,
   ];
 
   for (const sql of tables) {
@@ -96,6 +114,8 @@ async function bootstrap() {
     `CREATE INDEX IF NOT EXISTS idx_skills_type ON skills(type)`,
     `CREATE INDEX IF NOT EXISTS idx_skills_name ON skills(name)`,
     `CREATE INDEX IF NOT EXISTS idx_skills_updated_at ON skills(updated_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_conversations_owner ON conversations(user_id, agent_id, updated_at)`,
+    `CREATE INDEX IF NOT EXISTS idx_conversation_messages_created ON conversation_messages(conversation_id, created_at)`,
   ];
   for (const sql of indexes) {
     try {

@@ -16,10 +16,8 @@ const PROVIDER_PRESETS: ProviderPreset[] = [
     baseUrl: 'https://api.deepseek.com',
     apiKeyUrl: 'https://platform.deepseek.com/api_keys',
     models: [
-      { key: 'deepseek-v4', name: 'DeepSeek-V4' },
-      { key: 'deepseek-v3', name: 'DeepSeek-V3' },
-      { key: 'deepseek-r2', name: 'DeepSeek-R2' },
-      { key: 'deepseek-r1', name: 'DeepSeek-R1' },
+      { key: 'deepseek-chat', name: 'DeepSeek Chat' },
+      { key: 'deepseek-reasoner', name: 'DeepSeek Reasoner' },
     ],
   },
   {

@@ -4,9 +4,10 @@ import { AgentModule } from './agent/agent.module';
 import { SkillModule } from './skill/skill.module';
 import { ModelModule } from './model/model.module';
 import { AuthModule } from './auth/auth.module';
+import { ChatModule } from './chat/chat.module';
 
 @Module({
-  imports: [AuthModule, AgentModule, SkillModule, ModelModule],
+  imports: [AuthModule, AgentModule, SkillModule, ModelModule, ChatModule],
   providers: [PrismaService],
   exports: [PrismaService],
 })
