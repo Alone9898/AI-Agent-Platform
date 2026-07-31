@@ -1,0 +1,1216 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>星曜 Agent Platform | 本地 Agent 工作台</title>
+  <meta
+    name="description"
+    content="星曜 Agent Platform 是一个本地桌面端 Agent 管理平台，用于管理 Agent、Skill、Model、对话运行时与工具能力。"
+  />
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17202a;
+      --ink-soft: #53616e;
+      --muted: #74808a;
+      --paper: #f5f1e8;
+      --surface: #fffdf8;
+      --surface-2: #ebe5d8;
+      --line: #d8d0c2;
+      --gold: #c89b3c;
+      --gold-deep: #8f6821;
+      --teal: #3a9f96;
+      --teal-soft: #dceeea;
+      --danger: #a44634;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --shadow: 0 18px 48px rgba(23, 32, 42, 0.12);
+      --max: 1180px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(255, 253, 248, 0.9), rgba(245, 241, 232, 0.96)),
+        repeating-linear-gradient(90deg, rgba(23, 32, 42, 0.035) 0 1px, transparent 1px 88px);
+      font-family:
+        "Microsoft YaHei",
+        "PingFang SC",
+        "Segoe UI",
+        Arial,
+        sans-serif;
+      line-height: 1.6;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button,
+    a {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    :focus-visible {
+      outline: 3px solid rgba(58, 159, 150, 0.34);
+      outline-offset: 3px;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      border-bottom: 1px solid rgba(216, 208, 194, 0.78);
+      background: rgba(255, 253, 248, 0.92);
+      backdrop-filter: blur(14px);
+    }
+
+    .nav {
+      width: min(var(--max), calc(100% - 40px));
+      min-height: 68px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      min-width: max-content;
+      font-weight: 700;
+    }
+
+    .brand svg {
+      width: 38px;
+      height: 38px;
+      flex: 0 0 auto;
+    }
+
+    .brand span {
+      display: grid;
+      line-height: 1.16;
+    }
+
+    .brand small {
+      color: var(--ink-soft);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 4px;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    .nav-links a {
+      border-radius: var(--radius-sm);
+      padding: 8px 11px;
+    }
+
+    .nav-links a:hover {
+      color: var(--ink);
+      background: rgba(23, 32, 42, 0.055);
+    }
+
+    .nav-download {
+      color: var(--ink);
+      border: 1px solid var(--line);
+      background: var(--surface);
+    }
+
+    main {
+      overflow: hidden;
+    }
+
+    .hero {
+      min-height: calc(100vh - 68px);
+      padding: 70px 0 36px;
+      display: grid;
+      align-items: end;
+      background:
+        linear-gradient(180deg, rgba(245, 241, 232, 0), rgba(235, 229, 216, 0.68)),
+        radial-gradient(circle at 74% 16%, rgba(200, 155, 60, 0.14), transparent 34rem);
+    }
+
+    .hero-inner {
+      width: min(var(--max), calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .hero-copy {
+      width: min(790px, 100%);
+      padding: 30px 0 34px;
+    }
+
+    .kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 20px;
+      color: var(--gold-deep);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .kicker::before {
+      content: "";
+      width: 30px;
+      height: 2px;
+      background: var(--gold);
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      max-width: 880px;
+      font-size: clamp(44px, 7vw, 92px);
+      line-height: 0.98;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .hero-lead {
+      max-width: 720px;
+      margin-top: 24px;
+      color: #3f4b55;
+      font-size: clamp(17px, 2vw, 22px);
+      line-height: 1.72;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      margin-top: 32px;
+    }
+
+    .btn {
+      min-height: 46px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid transparent;
+      padding: 11px 17px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: border-color 160ms ease, background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .btn-primary {
+      color: #fffdf8;
+      background: var(--ink);
+      box-shadow: 0 10px 24px rgba(23, 32, 42, 0.2);
+    }
+
+    .btn-primary:hover {
+      background: #22303c;
+    }
+
+    .btn-secondary {
+      color: var(--ink);
+      border-color: var(--line);
+      background: rgba(255, 253, 248, 0.72);
+    }
+
+    .btn-secondary:hover {
+      border-color: #b8ad9b;
+      background: var(--surface);
+    }
+
+    .hero-note {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .console {
+      border: 1px solid rgba(23, 32, 42, 0.14);
+      border-radius: 14px;
+      background: #1b2530;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .console-bar {
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      color: #c5ced4;
+      font-size: 13px;
+    }
+
+    .window-dots {
+      display: inline-flex;
+      gap: 7px;
+    }
+
+    .window-dots i {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #b7c7c9;
+      opacity: 0.82;
+    }
+
+    .window-dots i:nth-child(2) {
+      background: #c89b3c;
+    }
+
+    .window-dots i:nth-child(3) {
+      background: #64b6ac;
+    }
+
+    .console-body {
+      min-height: 330px;
+      display: grid;
+      grid-template-columns: 240px minmax(0, 1fr);
+    }
+
+    .console-side {
+      padding: 18px;
+      border-right: 1px solid rgba(255, 255, 255, 0.08);
+      background: #17202a;
+      color: #e9edf0;
+    }
+
+    .side-title {
+      color: #aeb9bf;
+      font-size: 12px;
+    }
+
+    .agent-item {
+      margin-top: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 10px;
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.045);
+    }
+
+    .agent-item strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .agent-item span {
+      display: block;
+      margin-top: 4px;
+      color: #aeb9bf;
+      font-size: 12px;
+    }
+
+    .agent-item.active {
+      border-color: rgba(100, 182, 172, 0.52);
+      background: rgba(100, 182, 172, 0.1);
+    }
+
+    .console-main {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-width: 0;
+      background: #f7f4ec;
+    }
+
+    .chat-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 22px;
+      border-bottom: 1px solid rgba(23, 32, 42, 0.1);
+    }
+
+    .chat-head strong {
+      display: block;
+      font-size: 15px;
+    }
+
+    .chat-head span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .status-pill {
+      border: 1px solid #cbded9;
+      border-radius: 999px;
+      padding: 5px 10px;
+      color: #256b64;
+      background: #e7f4f1;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .chat-feed {
+      display: grid;
+      gap: 14px;
+      align-content: start;
+      padding: 22px;
+    }
+
+    .message {
+      width: min(560px, 100%);
+      border: 1px solid rgba(23, 32, 42, 0.1);
+      border-radius: 12px;
+      padding: 13px 14px;
+      color: #2c3740;
+      background: #fffdf8;
+      font-size: 14px;
+    }
+
+    .message.user {
+      justify-self: end;
+      color: #fffdf8;
+      border-color: #17202a;
+      background: #17202a;
+    }
+
+    .tool-run {
+      width: min(600px, 100%);
+      border-left: 3px solid var(--gold);
+      padding: 10px 12px;
+      color: #5b5141;
+      background: #f0eadc;
+      font-size: 13px;
+    }
+
+    .chat-input {
+      margin: 0 22px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px solid rgba(23, 32, 42, 0.12);
+      border-radius: 10px;
+      padding: 11px 12px 11px 14px;
+      color: #7a7469;
+      background: #fffdf8;
+      font-size: 14px;
+    }
+
+    .chat-input span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .send-dot {
+      width: 30px;
+      height: 30px;
+      display: inline-grid;
+      place-items: center;
+      border-radius: 8px;
+      color: #fffdf8;
+      background: var(--teal);
+      flex: 0 0 auto;
+    }
+
+    .section {
+      padding: 88px 0;
+      border-top: 1px solid rgba(216, 208, 194, 0.78);
+    }
+
+    .section.alt {
+      background: rgba(255, 253, 248, 0.58);
+    }
+
+    .section-inner {
+      width: min(var(--max), calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .section-head {
+      max-width: 700px;
+      margin-bottom: 34px;
+    }
+
+    h2 {
+      font-size: clamp(28px, 4vw, 48px);
+      line-height: 1.12;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .section-head p {
+      margin-top: 14px;
+      color: var(--ink-soft);
+      font-size: 17px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .feature {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      background: rgba(255, 253, 248, 0.7);
+    }
+
+    .feature-icon {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 8px;
+      color: var(--ink);
+      background: var(--teal-soft);
+    }
+
+    .feature-icon.gold {
+      background: #efe2bd;
+    }
+
+    .feature-icon svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .feature h3 {
+      margin-top: 15px;
+      font-size: 17px;
+      line-height: 1.35;
+    }
+
+    .feature p {
+      margin-top: 9px;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    .workflow {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: var(--line);
+    }
+
+    .step {
+      min-height: 220px;
+      padding: 26px;
+      background: var(--surface);
+    }
+
+    .step-number {
+      color: var(--gold-deep);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .step h3 {
+      margin-top: 24px;
+      font-size: 22px;
+      line-height: 1.28;
+    }
+
+    .step p {
+      margin-top: 12px;
+      color: var(--ink-soft);
+      font-size: 15px;
+    }
+
+    .desktop-band {
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+      gap: 42px;
+      align-items: center;
+    }
+
+    .fact-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 26px;
+    }
+
+    .fact {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      color: var(--ink-soft);
+      font-size: 15px;
+    }
+
+    .fact svg {
+      width: 19px;
+      height: 19px;
+      margin-top: 2px;
+      color: var(--teal);
+      flex: 0 0 auto;
+    }
+
+    .install-panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      overflow: hidden;
+    }
+
+    .install-row {
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      padding: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .install-row:last-child {
+      border-bottom: 0;
+    }
+
+    .platform-icon {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+      color: var(--ink);
+      background: #eee7d8;
+    }
+
+    .platform-icon svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    .install-row strong {
+      display: block;
+      font-size: 17px;
+    }
+
+    .install-row span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .download-section {
+      padding: 92px 0;
+      color: #eef3f4;
+      background: #17202a;
+    }
+
+    .download-section .section-inner {
+      display: grid;
+      grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+      gap: 42px;
+      align-items: center;
+    }
+
+    .download-section h2 {
+      color: #fffdf8;
+    }
+
+    .download-section p {
+      margin-top: 16px;
+      color: #b7c7c9;
+    }
+
+    .download-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .download-card {
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      border-radius: var(--radius-md);
+      padding: 22px;
+      background: rgba(255, 253, 248, 0.05);
+    }
+
+    .download-card h3 {
+      margin-top: 16px;
+      color: #fffdf8;
+      font-size: 21px;
+    }
+
+    .download-card p {
+      min-height: 50px;
+      margin-top: 8px;
+      color: #b7c7c9;
+      font-size: 14px;
+    }
+
+    .download-card .btn {
+      width: 100%;
+      margin-top: 18px;
+    }
+
+    .download-card .btn-secondary {
+      color: #fffdf8;
+      border-color: rgba(255, 255, 255, 0.18);
+      background: rgba(255, 253, 248, 0.05);
+    }
+
+    .download-card .btn-secondary:hover {
+      border-color: rgba(255, 255, 255, 0.34);
+      background: rgba(255, 253, 248, 0.09);
+    }
+
+    .faq {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 34px;
+    }
+
+    .faq-item {
+      border-top: 2px solid var(--line);
+      padding-top: 16px;
+    }
+
+    .faq-item h3 {
+      font-size: 17px;
+    }
+
+    .faq-item p {
+      margin-top: 8px;
+      color: var(--ink-soft);
+      font-size: 14px;
+    }
+
+    footer {
+      border-top: 1px solid rgba(216, 208, 194, 0.78);
+      padding: 28px 0;
+      color: var(--muted);
+      background: var(--surface);
+      font-size: 13px;
+    }
+
+    .footer-inner {
+      width: min(var(--max), calc(100% - 40px));
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 40;
+      max-width: min(360px, calc(100% - 44px));
+      border: 1px solid rgba(164, 70, 52, 0.22);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: #6b2e22;
+      background: #fff7f1;
+      box-shadow: 0 16px 38px rgba(23, 32, 42, 0.16);
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: opacity 160ms ease, transform 160ms ease;
+      font-size: 14px;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 980px) {
+      .nav {
+        min-height: 64px;
+      }
+
+      .nav-links a:not(.nav-download) {
+        display: none;
+      }
+
+      .hero {
+        min-height: auto;
+        padding: 44px 0 28px;
+      }
+
+      .console-body {
+        grid-template-columns: 1fr;
+      }
+
+      .console-side {
+        display: none;
+      }
+
+      .feature-grid,
+      .workflow,
+      .desktop-band,
+      .download-section .section-inner,
+      .faq {
+        grid-template-columns: 1fr;
+      }
+
+      .section,
+      .download-section {
+        padding: 64px 0;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .nav,
+      .hero-inner,
+      .section-inner,
+      .footer-inner {
+        width: min(100% - 28px, var(--max));
+      }
+
+      .brand small {
+        display: none;
+      }
+
+      h1 {
+        font-size: 44px;
+      }
+
+      .hero-lead {
+        font-size: 16px;
+      }
+
+      .hero-actions,
+      .btn {
+        width: 100%;
+      }
+
+      .console-bar {
+        font-size: 12px;
+      }
+
+      .chat-head,
+      .chat-feed {
+        padding: 16px;
+      }
+
+      .chat-input {
+        margin: 0 16px 16px;
+      }
+
+      .install-row {
+        grid-template-columns: 46px minmax(0, 1fr);
+      }
+
+      .install-row .btn {
+        grid-column: 1 / -1;
+      }
+
+      .download-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .toast {
+        right: 14px;
+        bottom: 14px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <nav class="nav" aria-label="主导航">
+      <a class="brand" href="#top" aria-label="星曜 Agent Platform 首页">
+        <svg viewBox="0 0 96 96" fill="none" aria-hidden="true">
+          <rect x="8" y="8" width="80" height="80" rx="18" fill="#17202A" />
+          <path d="M28 60.5C36.5 70 53.5 70.5 64 59.5C74.5 48.5 72.5 31.5 62.5 25" stroke="#B7C7C9" stroke-width="4.5" stroke-linecap="round" />
+          <path d="M68 35.5C60.5 26 43.5 24.5 32.5 34.5C22 44 23 60 32.5 68" stroke="#C89B3C" stroke-width="4.5" stroke-linecap="round" />
+          <circle cx="48" cy="48" r="13" fill="#F3F0E8" />
+          <circle cx="48" cy="48" r="5" fill="#17202A" />
+          <circle cx="28" cy="60" r="5" fill="#64B6AC" />
+          <circle cx="68" cy="35" r="5" fill="#C89B3C" />
+          <path d="M48 18L51.4 26.6L60 30L51.4 33.4L48 42L44.6 33.4L36 30L44.6 26.6L48 18Z" fill="#E7C25F" />
+          <path d="M70 63L72 68L77 70L72 72L70 77L68 72L63 70L68 68L70 63Z" fill="#64B6AC" />
+        </svg>
+        <span>
+          星曜
+          <small>Agent Platform</small>
+        </span>
+      </a>
+
+      <div class="nav-links">
+        <a href="#features">产品能力</a>
+        <a href="#workflow">工作方式</a>
+        <a href="#desktop">本地运行</a>
+        <a class="nav-download" href="#download">下载</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-inner">
+        <div class="hero-copy">
+          <div class="kicker">本地桌面端 Agent 工作台</div>
+          <h1 id="hero-title">星曜 Agent Platform</h1>
+          <p class="hero-lead">
+            把 Agent、Skill、Model、对话运行时和工具执行收进一个清晰的桌面应用里。适合自己搭建可控的 Agent 工作流，也适合继续扩展成团队内部的智能体平台。
+          </p>
+          <div class="hero-actions">
+            <a class="btn btn-primary js-download" href="#" data-platform="windows" aria-label="下载 Windows 版本">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 5.6L10.6 4.7V11H4V5.6Z" fill="currentColor" />
+                <path d="M12 4.5L20 3.4V11H12V4.5Z" fill="currentColor" />
+                <path d="M4 12.3H10.6V18.5L4 17.6V12.3Z" fill="currentColor" />
+                <path d="M12 12.3H20V19.7L12 18.7V12.3Z" fill="currentColor" />
+              </svg>
+              下载 Windows 版
+            </a>
+            <a class="btn btn-secondary js-download" href="#" data-platform="macos" aria-label="下载 macOS 版本">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M16.7 12.6C16.7 10.7 18 9.7 18.1 9.6C17.4 8.6 16.2 8.4 15.8 8.4C14.8 8.3 13.9 9 13.4 9C12.9 9 12.1 8.4 11.3 8.4C10.2 8.4 9.2 9 8.6 10C7.4 12.1 8.3 15.1 9.5 16.8C10.1 17.6 10.8 18.5 11.7 18.5C12.6 18.5 12.9 17.9 14 17.9C15 17.9 15.3 18.5 16.2 18.5C17.2 18.5 17.8 17.7 18.4 16.8C19.1 15.8 19.3 14.9 19.3 14.8C19.3 14.8 16.7 13.8 16.7 12.6Z" fill="currentColor" />
+                <path d="M15.1 7.3C15.6 6.7 16 5.9 15.9 5.1C15.2 5.1 14.5 5.6 14 6.2C13.5 6.8 13.1 7.6 13.2 8.3C13.9 8.4 14.6 7.9 15.1 7.3Z" fill="currentColor" />
+              </svg>
+              下载 macOS 版
+            </a>
+            <span class="hero-note">下载地址可在页面底部配置</span>
+          </div>
+        </div>
+
+        <div class="console" aria-label="星曜 Agent Platform 产品界面预览">
+          <div class="console-bar">
+            <span class="window-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span>星曜 Agent Platform</span>
+            <span>本地运行</span>
+          </div>
+          <div class="console-body">
+            <aside class="console-side">
+              <span class="side-title">Agents</span>
+              <div class="agent-item active">
+                <strong>研究助手</strong>
+                <span>Model 已绑定 · 5 个技能</span>
+              </div>
+              <div class="agent-item">
+                <strong>开发伙伴</strong>
+                <span>读取网页 · HTTP 请求</span>
+              </div>
+              <div class="agent-item">
+                <strong>本地文档整理</strong>
+                <span>Prompt Skill</span>
+              </div>
+            </aside>
+
+            <section class="console-main" aria-label="对话预览">
+              <div class="chat-head">
+                <div>
+                  <strong>研究助手</strong>
+                  <span>会话记忆、工具调用和最终回答保存在本地</span>
+                </div>
+                <span class="status-pill">Skill 已启用</span>
+              </div>
+              <div class="chat-feed">
+                <div class="message user">帮我查一下这个页面的核心信息，并总结成可执行事项。</div>
+                <div class="tool-run">web_fetch 正在读取公开网页，返回清洗后的正文片段。</div>
+                <div class="message">已整理 4 条关键信息，并标出需要继续确认的链接来源。你可以直接把它转成项目任务。</div>
+              </div>
+              <div class="chat-input">
+                <span>输入消息，选择 Agent 后开始执行...</span>
+                <span class="send-dot" aria-hidden="true">↵</span>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="features" aria-labelledby="features-title">
+      <div class="section-inner">
+        <div class="section-head">
+          <h2 id="features-title">核心能力围绕真实工作流组织</h2>
+          <p>星曜不是只放一个聊天框，而是把 Agent 的配置、技能、模型、运行过程和本地桌面能力拆清楚，方便你持续维护。</p>
+        </div>
+
+        <div class="feature-grid">
+          <article class="feature">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 3L20 7.4V16.6L12 21L4 16.6V7.4L12 3Z" stroke="currentColor" stroke-width="2" />
+                <path d="M8.5 10.2H15.5M8.5 13.8H13" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              </svg>
+            </div>
+            <h3>Agent 管理</h3>
+            <p>配置 Agent 名称、描述、系统提示词，并绑定合适的模型与技能，让每个 Agent 的职责清楚可查。</p>
+          </article>
+
+          <article class="feature">
+            <div class="feature-icon gold">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 7H20M7 4V20M17 4V20M4 17H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              </svg>
+            </div>
+            <h3>Skill 技能库</h3>
+            <p>支持 prompt、tool、mixed 三类 Skill，内置分页、搜索、过滤和预置技能导入，适合后续扩展。</p>
+          </article>
+
+          <article class="feature">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M7 8H17M7 12H17M7 16H13" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                <rect x="4" y="4" width="16" height="16" rx="3" stroke="currentColor" stroke-width="2" />
+              </svg>
+            </div>
+            <h3>Model 配置</h3>
+            <p>管理厂商预设和自定义模型参数，使用 OpenAI 兼容接口，把 API Key、Base URL 和模型标识集中维护。</p>
+          </article>
+
+          <article class="feature">
+            <div class="feature-icon gold">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M5 12H9L11 5L13 19L15 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </div>
+            <h3>工具执行</h3>
+            <p>当前已接入时间、计算器、联网搜索、网页读取和 HTTP GET 请求，工具是否可用由 Agent 绑定的 Skill 决定。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt" id="workflow" aria-labelledby="workflow-title">
+      <div class="section-inner">
+        <div class="section-head">
+          <h2 id="workflow-title">从配置到对话，路径尽量短</h2>
+          <p>日常使用可以按三个步骤走。先让模型能连上，再让 Agent 有明确职责，最后在对话里调用需要的工具。</p>
+        </div>
+
+        <div class="workflow">
+          <article class="step">
+            <div class="step-number">01</div>
+            <h3>配置 Model</h3>
+            <p>填写模型标识、Base URL 和 API Key。平台会把模型配置作为 Agent Runtime 的调用来源。</p>
+          </article>
+          <article class="step">
+            <div class="step-number">02</div>
+            <h3>组装 Agent</h3>
+            <p>写清系统提示词，选择模型，绑定一个或多个 Skill。工具类 Skill 会转换为模型可调用的 function tools。</p>
+          </article>
+          <article class="step">
+            <div class="step-number">03</div>
+            <h3>开始对话</h3>
+            <p>对话会保存 conversationId、消息上下文和执行步骤。需要联网、读取网页或计算时，由运行时按需调工具。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="desktop" aria-labelledby="desktop-title">
+      <div class="section-inner desktop-band">
+        <div>
+          <div class="section-head">
+            <h2 id="desktop-title">为本地桌面环境准备</h2>
+            <p>项目基于 Tauri 2、Vue 3、NestJS、Prisma 和 SQLite。前端、后端服务、本地数据和桌面壳能力放在同一个产品边界里。</p>
+          </div>
+
+          <div class="fact-list">
+            <div class="fact">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span>SQLite 本地数据存储，登录态、Agent、Skill、Model 和会话记录由后端统一管理。</span>
+            </div>
+            <div class="fact">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span>桌面端支持系统托盘、单实例运行、关闭隐藏到托盘，并通过 sidecar 拉起 NestJS 服务。</span>
+            </div>
+            <div class="fact">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M20 6L9 17L4 12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span>工具能力有明确边界，高权限写文件和执行代码类能力没有默认开放，后续可按白名单和审计继续接入。</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="install-panel" aria-label="安装包支持">
+          <div class="install-row">
+            <div class="platform-icon">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 5.6L10.6 4.7V11H4V5.6Z" fill="currentColor" />
+                <path d="M12 4.5L20 3.4V11H12V4.5Z" fill="currentColor" />
+                <path d="M4 12.3H10.6V18.5L4 17.6V12.3Z" fill="currentColor" />
+                <path d="M12 12.3H20V19.7L12 18.7V12.3Z" fill="currentColor" />
+              </svg>
+            </div>
+            <div>
+              <strong>Windows 桌面端</strong>
+              <span>Windows 10/11 · x64 · 适合当前打包主线</span>
+            </div>
+            <a class="btn btn-secondary js-download" href="#" data-platform="windows">下载</a>
+          </div>
+          <div class="install-row">
+            <div class="platform-icon">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M16.7 12.6C16.7 10.7 18 9.7 18.1 9.6C17.4 8.6 16.2 8.4 15.8 8.4C14.8 8.3 13.9 9 13.4 9C12.9 9 12.1 8.4 11.3 8.4C10.2 8.4 9.2 9 8.6 10C7.4 12.1 8.3 15.1 9.5 16.8C10.1 17.6 10.8 18.5 11.7 18.5C12.6 18.5 12.9 17.9 14 17.9C15 17.9 15.3 18.5 16.2 18.5C17.2 18.5 17.8 17.7 18.4 16.8C19.1 15.8 19.3 14.9 19.3 14.8C19.3 14.8 16.7 13.8 16.7 12.6Z" fill="currentColor" />
+                <path d="M15.1 7.3C15.6 6.7 16 5.9 15.9 5.1C15.2 5.1 14.5 5.6 14 6.2C13.5 6.8 13.1 7.6 13.2 8.3C13.9 8.4 14.6 7.9 15.1 7.3Z" fill="currentColor" />
+              </svg>
+            </div>
+            <div>
+              <strong>macOS 桌面端</strong>
+              <span>Apple 芯片 / Intel · 下载地址待接入</span>
+            </div>
+            <a class="btn btn-secondary js-download" href="#" data-platform="macos">下载</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="download-section" id="download" aria-labelledby="download-title">
+      <div class="section-inner">
+        <div>
+          <h2 id="download-title">下载星曜 Agent Platform</h2>
+          <p>这里的按钮地址集中放在页面底部的 JavaScript 配置里。等安装包上传到 GitHub Release、OSS 或你的下载服务器后，替换两个字符串即可。</p>
+        </div>
+
+        <div class="download-grid">
+          <article class="download-card">
+            <div class="platform-icon">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 5.6L10.6 4.7V11H4V5.6Z" fill="currentColor" />
+                <path d="M12 4.5L20 3.4V11H12V4.5Z" fill="currentColor" />
+                <path d="M4 12.3H10.6V18.5L4 17.6V12.3Z" fill="currentColor" />
+                <path d="M12 12.3H20V19.7L12 18.7V12.3Z" fill="currentColor" />
+              </svg>
+            </div>
+            <h3>Windows</h3>
+            <p>推荐用于当前 Windows 桌面端安装与试用。支持系统托盘、桌面快捷方式和开始菜单入口。</p>
+            <a class="btn btn-primary js-download" href="#" data-platform="windows">下载 Windows 安装包</a>
+          </article>
+
+          <article class="download-card">
+            <div class="platform-icon">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M16.7 12.6C16.7 10.7 18 9.7 18.1 9.6C17.4 8.6 16.2 8.4 15.8 8.4C14.8 8.3 13.9 9 13.4 9C12.9 9 12.1 8.4 11.3 8.4C10.2 8.4 9.2 9 8.6 10C7.4 12.1 8.3 15.1 9.5 16.8C10.1 17.6 10.8 18.5 11.7 18.5C12.6 18.5 12.9 17.9 14 17.9C15 17.9 15.3 18.5 16.2 18.5C17.2 18.5 17.8 17.7 18.4 16.8C19.1 15.8 19.3 14.9 19.3 14.8C19.3 14.8 16.7 13.8 16.7 12.6Z" fill="currentColor" />
+                <path d="M15.1 7.3C15.6 6.7 16 5.9 15.9 5.1C15.2 5.1 14.5 5.6 14 6.2C13.5 6.8 13.1 7.6 13.2 8.3C13.9 8.4 14.6 7.9 15.1 7.3Z" fill="currentColor" />
+              </svg>
+            </div>
+            <h3>macOS</h3>
+            <p>预留 macOS 下载入口，后续可以绑定 Apple 芯片或 Intel 架构对应的安装包地址。</p>
+            <a class="btn btn-secondary js-download" href="#" data-platform="macos">下载 macOS 安装包</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt" aria-labelledby="faq-title">
+      <div class="section-inner">
+        <div class="section-head">
+          <h2 id="faq-title">发布前常见问题</h2>
+          <p>这部分文字保持朴素，方便你后面直接换成正式说明、价格、更新日志或隐私政策。</p>
+        </div>
+
+        <div class="faq">
+          <article class="faq-item">
+            <h3>是否需要后端服务地址？</h3>
+            <p>桌面端通过 sidecar 拉起本地 NestJS 服务，用户正常使用不需要手动填写动态后端地址。</p>
+          </article>
+          <article class="faq-item">
+            <h3>联网搜索为什么有时不可用？</h3>
+            <p>联网搜索依赖 Tavily API Key。没有配置时，Agent 应该明确说明当前工具不可用。</p>
+          </article>
+          <article class="faq-item">
+            <h3>数据放在哪里？</h3>
+            <p>应用使用 SQLite 保存本地数据。具体数据库位置由 Tauri 应用数据目录和后端启动参数决定。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <span>星曜 Agent Platform</span>
+      <span>Agent · Skill · Model · Desktop Runtime</span>
+    </div>
+  </footer>
+
+  <div class="toast" id="download-toast" role="status" aria-live="polite">下载地址即将开放</div>
+
+  <script>
+    const DOWNLOAD_URLS = {
+      windows: "",
+      macos: "",
+    };
+
+    const toast = document.getElementById("download-toast");
+    let toastTimer = null;
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add("show");
+      window.clearTimeout(toastTimer);
+      toastTimer = window.setTimeout(() => {
+        toast.classList.remove("show");
+      }, 2200);
+    }
+
+    document.querySelectorAll(".js-download").forEach((link) => {
+      link.addEventListener("click", (event) => {
+        const platform = link.dataset.platform;
+        const url = DOWNLOAD_URLS[platform];
+
+        if (!url) {
+          event.preventDefault();
+          showToast(platform === "macos" ? "macOS 下载地址即将开放" : "Windows 下载地址即将开放");
+          return;
+        }
+
+        link.href = url;
+      });
+    });
+  </script>
+</body>
+</html>
