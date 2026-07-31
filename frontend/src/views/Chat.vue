@@ -315,22 +315,9 @@ async function handleSend(text: string) {
   height: 100%;
   overflow: hidden;
   border: 1px solid rgba(224, 226, 235, 0.9);
-  border-radius: 18px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 18px 45px rgba(31, 35, 60, 0.07);
-  isolation: isolate;
-}
-
-.chat-stage::before {
-  position: absolute;
-  z-index: 2;
-  top: 0;
-  left: 32px;
-  right: 32px;
-  height: 1px;
-  content: '';
-  background: linear-gradient(90deg, transparent, rgba(125, 108, 245, 0.65), transparent);
-  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(31, 35, 60, 0.05);
 }
 
 @media (max-width: 1180px) {
@@ -359,7 +346,7 @@ async function handleSend(text: string) {
 @media (max-width: 620px) {
   .chat-stage {
     min-height: 580px;
-    border-radius: 15px;
+    border-radius: 10px;
   }
 }
 </style>

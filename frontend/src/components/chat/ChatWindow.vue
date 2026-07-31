@@ -6,7 +6,6 @@
           <el-icon><ChatDotRound /></el-icon>
         </div>
         <div>
-          <span class="window-eyebrow">ACTIVE CONVERSATION</span>
           <h2 class="window-title">{{ props.agent?.name || '请选择智能体' }}</h2>
           <p class="window-subtitle">
             {{
@@ -69,14 +68,9 @@
       </div>
 
       <div v-else-if="props.agent && !props.loading" class="empty-state">
-        <div class="empty-orbit">
-          <span class="orbit-dot dot-one"></span>
-          <span class="orbit-dot dot-two"></span>
-          <div class="empty-core">
-            <el-icon><ChatDotRound /></el-icon>
-          </div>
+        <div class="empty-core standalone">
+          <el-icon><ChatDotRound /></el-icon>
         </div>
-        <span class="empty-eyebrow">NEW CONVERSATION</span>
         <h3>和 {{ props.agent.name }} 开始协作</h3>
         <p>发送一条消息，智能体会结合已绑定的模型与技能为你工作。</p>
       </div>
@@ -85,7 +79,6 @@
         <div class="empty-core standalone">
           <el-icon><ChatDotRound /></el-icon>
         </div>
-        <span class="empty-eyebrow">SELECT AN AGENT</span>
         <h3>{{ props.loading ? '正在加载智能体' : '选择一位智能体' }}</h3>
         <p>{{ props.loading ? '工作台正在准备你的智能团队。' : '从左侧目录选择成员后开始对话。' }}</p>
       </div>
@@ -223,24 +216,14 @@ defineExpose({
   align-items: center;
   justify-content: center;
   border: 1px solid #e3dffb;
-  border-radius: 12px;
+  border-radius: 9px;
   color: #7364e5;
   font-size: 17px;
-  background: linear-gradient(145deg, #f4f2ff, #ebe8ff);
-  box-shadow: 0 7px 16px rgba(104, 87, 210, 0.1);
+  background: #f0edff;
 }
 
 .window-identity > div:last-child {
   min-width: 0;
-}
-
-.window-eyebrow {
-  display: block;
-  margin-bottom: 2px;
-  color: #a0a4b4;
-  font-size: 7px;
-  font-weight: 700;
-  letter-spacing: 1.3px;
 }
 
 .window-title {
@@ -286,12 +269,7 @@ defineExpose({
   flex-direction: column;
   padding: 24px clamp(18px, 3vw, 34px);
   overflow-y: auto;
-  background:
-    radial-gradient(circle at 100% 0%, rgba(116, 102, 239, 0.045), transparent 30%),
-    linear-gradient(rgba(123, 128, 151, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(123, 128, 151, 0.025) 1px, transparent 1px),
-    #fafbfe;
-  background-size: auto, 34px 34px, 34px 34px, auto;
+  background: #f8f9fc;
 }
 
 .message-stack {
@@ -300,8 +278,12 @@ defineExpose({
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
   min-height: 100%;
+}
+
+.message-stack::before {
+  content: '';
+  margin-top: auto;
 }
 
 .message-row {
@@ -325,15 +307,13 @@ defineExpose({
   border-radius: 11px;
   color: #7162df;
   font-size: 14px;
-  background: linear-gradient(145deg, #f1efff, #e7e3ff);
-  box-shadow: 0 6px 14px rgba(76, 64, 156, 0.09);
+  background: #eeebff;
 }
 
 .message-row.user .message-avatar {
   border-color: transparent;
   color: #fff;
-  background: linear-gradient(145deg, #8072ef, #6554d0);
-  box-shadow: 0 7px 15px rgba(93, 76, 194, 0.18);
+  background: #6d60d9;
 }
 
 .message-bubble {
@@ -343,15 +323,15 @@ defineExpose({
   border-radius: 5px 15px 15px 15px;
   color: #3a3f52;
   background: #fff;
-  box-shadow: 0 8px 20px rgba(33, 37, 61, 0.04);
+  box-shadow: 0 1px 2px rgba(33, 37, 61, 0.04);
 }
 
 .message-row.user .message-bubble {
   border-color: transparent;
   border-radius: 15px 5px 15px 15px;
   color: #fff;
-  background: linear-gradient(135deg, #7668e8 0%, #6251ca 100%);
-  box-shadow: 0 10px 22px rgba(92, 75, 192, 0.16);
+  background: #6d60d9;
+  box-shadow: none;
 }
 
 .message-meta {
@@ -460,26 +440,6 @@ defineExpose({
   text-align: center;
 }
 
-.empty-orbit {
-  position: relative;
-  width: 94px;
-  height: 94px;
-  margin-bottom: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(116, 102, 232, 0.13);
-  border-radius: 50%;
-}
-
-.empty-orbit::before {
-  position: absolute;
-  inset: 10px;
-  border: 1px dashed rgba(116, 102, 232, 0.16);
-  border-radius: 50%;
-  content: '';
-}
-
 .empty-core {
   position: relative;
   z-index: 1;
@@ -489,47 +449,18 @@ defineExpose({
   align-items: center;
   justify-content: center;
   border: 1px solid #e3dffb;
-  border-radius: 15px;
+  border-radius: 10px;
   color: #7263df;
   font-size: 20px;
-  background: linear-gradient(145deg, #f3f1ff, #e7e3ff);
-  box-shadow: 0 12px 24px rgba(90, 75, 186, 0.12);
+  background: #eeebff;
 }
 
 .empty-core.standalone {
   margin-bottom: 20px;
 }
 
-.orbit-dot {
-  position: absolute;
-  z-index: 2;
-  width: 7px;
-  height: 7px;
-  border: 2px solid #fafbfe;
-  border-radius: 50%;
-}
-
-.dot-one {
-  top: 10px;
-  right: 18px;
-  background: #6fd4bb;
-}
-
-.dot-two {
-  left: 4px;
-  bottom: 26px;
-  background: #897bf0;
-}
-
-.empty-eyebrow {
-  color: #9b9faf;
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-}
-
 .empty-state h3 {
-  margin: 8px 0 7px;
+  margin: 0 0 7px;
   color: #313649;
   font-size: 17px;
   font-weight: 680;
@@ -604,9 +535,4 @@ defineExpose({
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .orbit-dot {
-    animation: none;
-  }
-}
 </style>

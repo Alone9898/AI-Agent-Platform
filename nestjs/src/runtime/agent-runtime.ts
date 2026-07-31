@@ -54,7 +54,13 @@ export class AgentRuntime {
       agent.skills.map(({ skill }) => skill.tools),
     );
     const modelMessages: RuntimeModelMessage[] = [
-      { role: 'system', content: buildSystemPrompt(agent) },
+      {
+        role: 'system',
+        content: buildSystemPrompt(
+          agent,
+          tools.map((tool) => tool.definition.function.name),
+        ),
+      },
       ...memoryResult.messages.map((item) => ({
         role: item.role,
         content: item.content,
@@ -179,18 +185,21 @@ function validateRequest(request: AgentRuntimeRequest) {
   }
 }
 
-function buildSystemPrompt(agent: {
-  name: string;
-  description: string | null;
-  systemPrompt: string | null;
-  skills: Array<{
-    skill: {
-      name: string;
-      description: string | null;
-      prompt: string | null;
-    };
-  }>;
-}): string {
+function buildSystemPrompt(
+  agent: {
+    name: string;
+    description: string | null;
+    systemPrompt: string | null;
+    skills: Array<{
+      skill: {
+        name: string;
+        description: string | null;
+        prompt: string | null;
+      };
+    }>;
+  },
+  availableToolNames: string[],
+): string {
   const skillPrompts = agent.skills
     .map(({ skill }) => {
       const prompt = skill.prompt?.trim();
@@ -199,6 +208,29 @@ function buildSystemPrompt(agent: {
     })
     .filter(Boolean)
     .join('\n\n');
+  const availableTools = new Set(availableToolNames);
+  const toolAvailabilityRules = [
+    'Tool availability rules:',
+    `- Enabled tools for this agent: ${availableToolNames.length ? availableToolNames.join(', ') : 'none'}.`,
+    '- If the user asks for current time, current date, timezone, or other real-time clock information, use get_current_time. If get_current_time is not enabled, say in Chinese that the current Agent has not enabled the time tool and cannot query real-time clock information.',
+    '- If the user asks to search the web, browse the internet, check latest/current news, prices, schedules, policies, or other live web information, use web_search. If web_search is not enabled, say in Chinese that the current Agent has not enabled the web search tool and cannot query live web information.',
+    '- If the user asks to open, fetch, read, or summarize a URL or webpage, use web_fetch. If web_fetch is not enabled, say in Chinese that the current Agent has not enabled the webpage reading tool and cannot read external pages.',
+    '- If the user asks to request a public API endpoint, inspect an HTTP response, or fetch raw JSON/text from a URL, use http_request. If http_request is not enabled, say in Chinese that the current Agent has not enabled the HTTP request tool and cannot request external APIs.',
+    '- Do not guess, estimate, or fabricate external real-time information when the required tool is unavailable. You may still answer stable general knowledge normally.',
+  ];
+
+  if (!availableTools.has('get_current_time')) {
+    toolAvailabilityRules.push('- get_current_time is unavailable for this Agent.');
+  }
+  if (!availableTools.has('web_search')) {
+    toolAvailabilityRules.push('- web_search is unavailable for this Agent.');
+  }
+  if (!availableTools.has('web_fetch')) {
+    toolAvailabilityRules.push('- web_fetch is unavailable for this Agent.');
+  }
+  if (!availableTools.has('http_request')) {
+    toolAvailabilityRules.push('- http_request is unavailable for this Agent.');
+  }
 
   return [
     agent.systemPrompt?.trim(),
@@ -207,6 +239,7 @@ function buildSystemPrompt(agent: {
       ? `Agent description: ${agent.description.trim()}`
       : '',
     skillPrompts ? `Active skill instructions:\n\n${skillPrompts}` : '',
+    toolAvailabilityRules.join('\n'),
     'Use available tools when they are needed. Answer naturally and do not expose internal runtime details.',
   ]
     .filter(Boolean)

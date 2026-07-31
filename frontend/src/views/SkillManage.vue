@@ -627,10 +627,10 @@ async function handleDelete(id: number) {
   padding: 14px 16px;
   background: #fff;
   border-radius: 8px;
-  border: 1px solid #f0f0f0;
+  border: 1px solid #e5e7ed;
   cursor: pointer;
   min-width: 0;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .preset-card:focus-visible {
@@ -639,14 +639,12 @@ async function handleDelete(id: number) {
 }
 
 .preset-card:hover {
-  border-color: #409eff;
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.12);
-  transform: translateY(-2px);
+  border-color: #9e94e8;
+  background: #faf9ff;
 }
 
 .preset-card.preset-type-tool:hover {
   border-color: #e6a23c;
-  box-shadow: 0 4px 12px rgba(230, 162, 60, 0.15);
 }
 
 .preset-card.imported {
@@ -656,8 +654,7 @@ async function handleDelete(id: number) {
 }
 
 .preset-card.imported:hover {
-  box-shadow: 0 2px 8px rgba(103, 194, 58, 0.15);
-  transform: none;
+  background: #f6ffed;
 }
 
 .preset-icon {
@@ -749,9 +746,10 @@ async function handleDelete(id: number) {
 
 .table-card {
   background: #fff;
+  border: 1px solid #e5e7ed;
   border-radius: 8px;
   padding: 4px 0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(31, 36, 61, 0.04);
   overflow: hidden;
 }
 

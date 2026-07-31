@@ -1,25 +1,17 @@
 <template>
   <div class="login-page">
     <section class="brand-panel">
-      <div class="brand-glow brand-glow-primary"></div>
-      <div class="brand-glow brand-glow-secondary"></div>
-      <div class="brand-grid"></div>
-
       <header class="brand-header">
         <div class="brand-logo">
-          <el-icon :size="22"><Cpu /></el-icon>
+          <img :src="logoMark" alt="星曜 Agent Platform" />
         </div>
         <div class="brand-name">
-          <strong>AI Agent</strong>
-          <span>PLATFORM</span>
+          <strong>星曜</strong>
+          <span>Agent Platform</span>
         </div>
       </header>
 
       <div class="brand-content">
-        <div class="eyebrow">
-          <span class="eyebrow-dot"></span>
-          DESKTOP AI WORKSPACE
-        </div>
         <h1>
           把每个智能体，
           <span>变成你的团队成员。</span>
@@ -60,8 +52,7 @@
       </div>
 
       <footer class="brand-footer">
-        <span><i class="status-light"></i> Local workspace ready</span>
-        <span>TAURI · VUE · NESTJS</span>
+        本地部署，数据存储于当前设备
       </footer>
     </section>
 
@@ -69,15 +60,14 @@
       <div class="login-shell">
         <div class="mobile-brand">
           <div class="brand-logo">
-            <el-icon :size="20"><Cpu /></el-icon>
+            <img :src="logoMark" alt="星曜 Agent Platform" />
           </div>
-          <strong>AI Agent</strong>
+          <strong>星曜 Agent Platform</strong>
         </div>
 
         <div class="login-header">
-          <span class="login-kicker">WELCOME BACK</span>
           <h2>欢迎回来</h2>
-          <p>登录账号，继续构建你的 AI 团队</p>
+          <p>登录后管理你的智能体、技能与模型</p>
         </div>
 
         <el-form
@@ -137,7 +127,7 @@
         </div>
       </div>
 
-      <footer class="login-footer">AI Agent Platform · 本地智能工作台</footer>
+      <footer class="login-footer">星曜 Agent Platform · 本地智能工作台</footer>
     </main>
   </div>
 </template>
@@ -149,6 +139,7 @@ import { ElMessage } from 'element-plus'
 import { ChatDotRound, Cpu, Lock, MagicStick, Right, User } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores'
 import { getApiErrorMessage } from '@/api'
+import logoMark from '@/assets/logo-mark.svg'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -205,44 +196,7 @@ async function handleLogin() {
   flex-direction: column;
   overflow: hidden;
   color: #fff;
-  background:
-    radial-gradient(circle at 12% 10%, rgba(124, 105, 255, 0.18), transparent 30%),
-    linear-gradient(145deg, var(--brand-bg) 0%, #181e36 52%, var(--brand-bg-light) 100%);
-}
-
-.brand-grid {
-  position: absolute;
-  inset: 0;
-  opacity: 0.28;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  background-size: 44px 44px;
-  mask-image: linear-gradient(to bottom right, #000 0%, transparent 70%);
-}
-
-.brand-glow {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(4px);
-  pointer-events: none;
-}
-
-.brand-glow-primary {
-  width: 420px;
-  height: 420px;
-  right: -170px;
-  top: 15%;
-  background: rgba(118, 103, 245, 0.2);
-  box-shadow: 0 0 100px rgba(118, 103, 245, 0.24);
-}
-
-.brand-glow-secondary {
-  width: 260px;
-  height: 260px;
-  left: 18%;
-  bottom: -170px;
-  background: rgba(49, 201, 190, 0.12);
+  background: #1c2134;
 }
 
 .brand-header,
@@ -261,14 +215,16 @@ async function handleLogin() {
 .brand-logo {
   width: 44px;
   height: 44px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  background: linear-gradient(145deg, rgba(144, 128, 255, 0.95), rgba(103, 83, 220, 0.9));
-  box-shadow: 0 12px 30px rgba(83, 66, 190, 0.32), inset 0 1px rgba(255, 255, 255, 0.25);
+  flex-shrink: 0;
+}
+
+.brand-logo img {
+  width: 44px;
+  height: 44px;
+  display: block;
 }
 
 .brand-name {
@@ -280,13 +236,14 @@ async function handleLogin() {
 .brand-name strong {
   font-size: 17px;
   line-height: 1;
-  letter-spacing: 0.2px;
+  letter-spacing: 0;
 }
 
 .brand-name span {
-  font-size: 9px;
-  color: rgba(255, 255, 255, 0.42);
-  letter-spacing: 2.6px;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 600;
 }
 
 .brand-content {
@@ -294,39 +251,20 @@ async function handleLogin() {
   max-width: 690px;
   margin: auto 0;
   padding: 60px 0;
-  animation: content-in 0.7s ease both;
-}
-
-.eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin-bottom: 24px;
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 2.1px;
-}
-
-.eyebrow-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #72e3d5;
-  box-shadow: 0 0 0 5px rgba(114, 227, 213, 0.1), 0 0 16px rgba(114, 227, 213, 0.75);
+  animation: content-in 0.35s ease both;
 }
 
 .brand-content h1 {
   margin: 0;
-  font-size: clamp(38px, 4.1vw, 62px);
+  font-size: clamp(34px, 3.6vw, 52px);
   line-height: 1.18;
   font-weight: 720;
-  letter-spacing: -2.2px;
+  letter-spacing: -1.5px;
 }
 
 .brand-content h1 span {
   display: block;
-  color: var(--accent-light);
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .brand-description {
@@ -350,17 +288,15 @@ async function handleLogin() {
   display: flex;
   align-items: center;
   gap: 11px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.045);
-  backdrop-filter: blur(10px);
-  transition: transform 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: #242a3d;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .capability-card:hover {
-  transform: translateY(-3px);
   border-color: rgba(159, 148, 255, 0.28);
-  background: rgba(255, 255, 255, 0.07);
+  background: #292f44;
 }
 
 .capability-icon {
@@ -411,29 +347,8 @@ async function handleLogin() {
 }
 
 .brand-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   color: rgba(255, 255, 255, 0.3);
-  font-size: 9px;
-  letter-spacing: 1.4px;
-}
-
-.brand-footer span:first-child {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: rgba(255, 255, 255, 0.4);
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-}
-
-.status-light {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #55d8a7;
-  box-shadow: 0 0 10px rgba(85, 216, 167, 0.8);
+  font-size: 10px;
 }
 
 .login-panel {
@@ -444,15 +359,13 @@ async function handleLogin() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background:
-    radial-gradient(circle at 100% 0%, rgba(118, 103, 245, 0.07), transparent 28%),
-    #f7f8fc;
+  background: #f7f8fc;
 }
 
 .login-shell {
   width: 100%;
   max-width: 390px;
-  animation: login-in 0.65s 0.08s ease both;
+  animation: login-in 0.35s 0.05s ease both;
 }
 
 .mobile-brand {
@@ -468,6 +381,11 @@ async function handleLogin() {
   height: 40px;
 }
 
+.mobile-brand .brand-logo img {
+  width: 40px;
+  height: 40px;
+}
+
 .mobile-brand strong {
   font-size: 17px;
 }
@@ -476,15 +394,8 @@ async function handleLogin() {
   margin-bottom: 34px;
 }
 
-.login-kicker {
-  color: var(--accent);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 2.1px;
-}
-
 .login-header h2 {
-  margin: 12px 0 9px;
+  margin: 0 0 9px;
   color: var(--ink);
   font-size: 32px;
   line-height: 1.2;
@@ -517,14 +428,14 @@ async function handleLogin() {
 .login-form :deep(.el-input__wrapper) {
   min-height: 52px;
   padding: 0 16px;
-  border-radius: 12px;
+  border-radius: 9px;
   background: #fff;
-  box-shadow: 0 0 0 1px #e3e5ed inset, 0 4px 12px rgba(38, 43, 72, 0.025);
-  transition: box-shadow 0.25s ease, transform 0.25s ease;
+  box-shadow: 0 0 0 1px #e0e2e9 inset;
+  transition: box-shadow 0.2s ease;
 }
 
 .login-form :deep(.el-input__wrapper:hover) {
-  box-shadow: 0 0 0 1px #cfd2df inset, 0 5px 14px rgba(38, 43, 72, 0.04);
+  box-shadow: 0 0 0 1px #c9ccd7 inset;
 }
 
 .login-form :deep(.el-input__wrapper.is-focus) {
@@ -558,27 +469,21 @@ async function handleLogin() {
 .login-btn {
   width: 100%;
   height: 52px;
-  border-radius: 12px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 14px;
   font-weight: 650;
   letter-spacing: 0.3px;
-  background: linear-gradient(135deg, #7163ed 0%, #6754d6 100%);
+  background: #7466ef;
   border: none;
-  box-shadow: 0 12px 24px rgba(103, 84, 214, 0.2);
-  transition: transform 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
+  box-shadow: none;
+  transition: background 0.2s ease;
 }
 
 .login-btn:hover {
-  transform: translateY(-2px);
-  filter: brightness(1.04);
-  box-shadow: 0 16px 28px rgba(103, 84, 214, 0.28);
-}
-
-.login-btn:active {
-  transform: translateY(0);
+  background: #6557d9;
 }
 
 .account-tip {
@@ -588,7 +493,7 @@ async function handleLogin() {
   align-items: center;
   gap: 12px;
   border: 1px solid #e9eaf1;
-  border-radius: 12px;
+  border-radius: 9px;
   background: rgba(255, 255, 255, 0.62);
 }
 
@@ -635,22 +540,18 @@ async function handleLogin() {
 @keyframes content-in {
   from {
     opacity: 0;
-    transform: translateY(16px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
 @keyframes login-in {
   from {
     opacity: 0;
-    transform: translateX(16px);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
   }
 }
 
@@ -706,10 +607,6 @@ async function handleLogin() {
 
   .brand-content {
     padding: 28px 0;
-  }
-
-  .eyebrow {
-    margin-bottom: 16px;
   }
 
   .brand-description {

@@ -1,7 +1,7 @@
 <template>
   <section class="chat-input">
     <div class="composer-header">
-      <span><i></i> MESSAGE COMPOSER</span>
+      <span>消息</span>
       <span v-if="disabled" class="composer-disabled">等待选择智能体</span>
     </div>
 
@@ -84,21 +84,9 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 .composer-header > span:first-child {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: #a0a4b4;
-  font-size: 7px;
-  font-weight: 700;
-  letter-spacing: 1.25px;
-}
-
-.composer-header i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #7567e6;
-  box-shadow: 0 0 0 4px rgba(117, 103, 230, 0.08);
+  color: #7b8092;
+  font-size: 10px;
+  font-weight: 600;
 }
 
 .composer-disabled {
@@ -109,9 +97,9 @@ function handleKeydown(event: KeyboardEvent) {
 .composer-shell {
   padding: 11px 11px 9px;
   border: 1px solid #e3e5ec;
-  border-radius: 14px;
+  border-radius: 10px;
   background: #fafbfe;
-  box-shadow: inset 0 1px 2px rgba(31, 35, 58, 0.025);
+  box-shadow: none;
   transition: border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease;
 }
 

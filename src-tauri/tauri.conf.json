@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicegui/nicegui/main/tauri/tauri.conf.json",
-  "productName": "AI Agent Platform",
+  "productName": "星曜 Agent Platform",
   "version": "1.0.0",
   "identifier": "com.aiagent.platform",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "AI Agent Platform",
+        "title": "星曜 Agent Platform",
         "width": 1200,
         "height": 800,
         "resizable": true,
@@ -40,7 +40,7 @@
       "active": true,
       "pubkey": "",
       "endpoints": [
-        "https://github.com/your-org/ai-agent-platform/releases/latest/download/latest.json"
+        "https://github.com/your-org/xingyao-agent-platform/releases/latest/download/latest.json"
       ]
     }
   }

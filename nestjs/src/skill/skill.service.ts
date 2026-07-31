@@ -126,6 +126,54 @@ const SKILL_PRESETS: SkillPreset[] = [
     }]),
   },
   {
+    key: 'web-fetch',
+    name: '[工具] 网页读取',
+    description: '读取公开网页内容并提取文本摘要',
+    type: 'tool',
+    tools: JSON.stringify([{
+      name: 'web_fetch',
+      description: '读取公开网页内容，返回清洗后的文本摘要',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: '要读取的公开 HTTP/HTTPS 网页地址' },
+          maxChars: { type: 'number', description: '最多返回字符数，默认 6000，最多 20000' },
+        },
+        required: ['url'],
+      },
+    }]),
+  },
+  {
+    key: 'http-request',
+    name: '[工具] HTTP 请求',
+    description: '向公开 HTTP/HTTPS 地址发送 GET 请求，读取网页原始响应或公开 API',
+    type: 'tool',
+    tools: JSON.stringify([{
+      name: 'http_request',
+      description: '向公开 HTTP/HTTPS 地址发送 GET 请求，适合读取公开 API 或网页原始响应',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: '公开 HTTP/HTTPS URL' },
+          query: {
+            type: 'object',
+            description: '追加到 URL 上的查询参数',
+            additionalProperties: {
+              oneOf: [{ type: 'string' }, { type: 'number' }, { type: 'boolean' }],
+            },
+          },
+          headers: {
+            type: 'object',
+            description: '可选请求头，仅允许 Accept、Accept-Language、Cache-Control、User-Agent',
+            additionalProperties: { type: 'string' },
+          },
+          maxChars: { type: 'number', description: '最多返回字符数，默认 20000，最多 50000' },
+        },
+        required: ['url'],
+      },
+    }]),
+  },
+  {
     key: 'read-file',
     name: '[工具] 读取文件',
     description: '读取本地文件内容（文本、代码、数据等）',
@@ -202,7 +250,7 @@ const SKILL_PRESETS: SkillPreset[] = [
     type: 'tool',
     tools: JSON.stringify([{
       name: 'calculator',
-      description: '执行数学表达式计算，支持四则运算、幂运算、科学函数',
+      description: '执行数学表达式计算，支持四则运算、括号和幂运算',
       parameters: {
         type: 'object',
         properties: {

@@ -32,6 +32,8 @@ export const useAuthStore = defineStore('auth', () => {
       if (token.value) {
         await authApi.logout()
       }
+    } catch {
+      // Logout should always clear local state even if the backend session endpoint fails.
     } finally {
       token.value = ''
       user.value = null

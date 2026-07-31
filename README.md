@@ -1,4 +1,4 @@
-# AI Agent Platform / AI 智能体管理平台
+# 星曜 Agent Platform / AI 智能体管理平台
 
 <div align="center">
 
@@ -17,9 +17,9 @@ A desktop AI agent management platform built with `Tauri 2 + Vue 3 + NestJS + Pr
 
 ## Overview / 项目概览
 
-AI Agent Platform is a desktop tool for managing AI agents, skills, and models in one place. It is designed for users who want a local, structured, and extensible workspace for building agent workflows.
+Xingyao Agent Platform is a desktop tool for managing AI agents, skills, and models in one place. It is designed for users who want a local, structured, and extensible workspace for building agent workflows.
 
-AI Agent Platform 是一个把 Agent、Skill、Model 和认证能力统一起来的桌面端管理工具，适合用于本地化、结构化、可扩展的 AI 工作流编排。
+星曜 Agent Platform 是一个把 Agent、Skill、Model 和认证能力统一起来的桌面端管理工具，适合用于本地化、结构化、可扩展的 AI 工作流编排。
 
 Key ideas / 核心理念:
 

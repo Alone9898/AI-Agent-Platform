@@ -2,7 +2,6 @@
   <aside class="chat-sidebar">
     <div class="sidebar-header">
       <div class="sidebar-heading">
-        <span class="sidebar-eyebrow">AGENT DIRECTORY</span>
         <h2 class="sidebar-title">智能体</h2>
       </div>
       <span class="agent-count">{{ props.agents.length }}</span>
@@ -58,7 +57,6 @@
     </div>
 
     <div class="sidebar-footer">
-      <span class="footer-dot"></span>
       <span>选择智能体开始协作</span>
     </div>
   </aside>
@@ -112,13 +110,10 @@ function getSkillCount(agent: any): number {
   min-height: 0;
   overflow: hidden;
   border: 1px solid rgba(224, 226, 235, 0.9);
-  border-radius: 18px;
-  background:
-    radial-gradient(circle at 0 0, rgba(116, 102, 239, 0.09), transparent 32%),
-    rgba(255, 255, 255, 0.88);
-  box-shadow: 0 18px 45px rgba(31, 35, 60, 0.055);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(31, 35, 60, 0.05);
   color: #23283b;
-  backdrop-filter: blur(14px);
 }
 
 .sidebar-header {
@@ -134,13 +129,6 @@ function getSkillCount(agent: any): number {
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-.sidebar-eyebrow {
-  color: #9b9faf;
-  font-size: 8px;
-  font-weight: 650;
-  letter-spacing: 1.35px;
 }
 
 .sidebar-title {
@@ -186,7 +174,7 @@ function getSkillCount(agent: any): number {
   text-align: left;
   background: transparent;
   cursor: pointer;
-  transition: border-color 0.22s ease, background 0.22s ease, transform 0.22s ease;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .agent-item + .agent-item {
@@ -196,12 +184,11 @@ function getSkillCount(agent: any): number {
 .agent-item:hover {
   border-color: #eceaf8;
   background: #faf9ff;
-  transform: translateX(2px);
 }
 
 .agent-item.active {
   border-color: rgba(120, 103, 238, 0.16);
-  background: linear-gradient(110deg, rgba(116, 102, 239, 0.11), rgba(116, 102, 239, 0.035));
+  background: #f5f3ff;
   box-shadow: inset 3px 0 0 #7e70ef;
 }
 
@@ -238,7 +225,7 @@ function getSkillCount(agent: any): number {
   color: #fff;
   font-size: 16px;
   font-weight: 700;
-  box-shadow: 0 6px 14px rgba(35, 39, 64, 0.13);
+  box-shadow: 0 2px 5px rgba(35, 39, 64, 0.12);
   letter-spacing: 0;
 }
 
@@ -335,24 +322,14 @@ function getSkillCount(agent: any): number {
   padding: 12px 17px 14px;
   display: flex;
   align-items: center;
-  gap: 7px;
   border-top: 1px solid #eff0f4;
   color: #a1a5b4;
   font-size: 9px;
   letter-spacing: 0.2px;
 }
 
-.footer-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #7c6eed;
-  box-shadow: 0 0 0 4px rgba(124, 110, 237, 0.08);
-}
-
 :deep(.sidebar-body .el-loading-mask) {
-  background: rgba(255, 255, 255, 0.34);
-  backdrop-filter: blur(4px);
+  background: rgba(255, 255, 255, 0.7);
 }
 
 :deep(.sidebar-body .el-empty__description p) {

@@ -220,6 +220,7 @@ async function handleDelete(id: number) {
 <style scoped>
 .page-container {
   max-width: 1400px;
+  width: 100%;
 }
 
 .page-header {
@@ -255,9 +256,10 @@ async function handleDelete(id: number) {
 
 .table-card {
   background: #fff;
+  border: 1px solid #e5e7ed;
   border-radius: 10px;
   padding: 4px 0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(31, 36, 61, 0.04);
 }
 
 .name-cell {
@@ -302,7 +304,7 @@ async function handleDelete(id: number) {
 }
 
 .apikey-link {
-  color: #667eea;
+  color: #6557d9;
   font-size: 13px;
   white-space: nowrap;
   text-decoration: none;

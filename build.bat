@@ -5,10 +5,10 @@ chcp 65001 >nul 2>&1
 set "ROOT=%~dp0"
 pushd "%ROOT%" || exit /b 1
 
-title AI Agent Platform - Build
+title Xingyao Agent Platform - Build
 
 echo ========================================
-echo   AI Agent Platform
+echo   Xingyao Agent Platform
 echo   Building release package
 echo ========================================
 echo.

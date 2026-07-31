@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ToolHandlerRegistry } from '../tools';
 import { ToolExecutor } from './tool-executor';
 import { RuntimeToolDefinition } from './runtime.types';
 
@@ -17,21 +18,28 @@ interface RegisteredTool {
 
 @Injectable()
 export class ToolRegistry {
-  constructor(private readonly toolExecutor: ToolExecutor) {}
+  constructor(
+    private readonly toolExecutor: ToolExecutor,
+    private readonly toolHandlers: ToolHandlerRegistry,
+  ) {}
 
   resolve(serializedTools: Array<string | null>): RegisteredTool[] {
     const registered = new Map<string, RegisteredTool>();
     for (const serialized of serializedTools) {
       for (const tool of parseTools(serialized)) {
-        if (!isSupported(tool)) continue;
+        if (!this.isSupported(tool)) continue;
+        const handlerDefinition = this.toolHandlers.getDefinition(tool.name);
         registered.set(tool.name, {
           config: tool,
           definition: {
             type: 'function',
             function: {
               name: tool.name,
-              description: tool.description,
-              parameters: tool.parameters || { type: 'object', properties: {} },
+              description: tool.description || handlerDefinition?.description,
+              parameters:
+                tool.parameters ||
+                handlerDefinition?.parameters ||
+                { type: 'object', properties: {} },
             },
           },
         });
@@ -41,39 +49,8 @@ export class ToolRegistry {
   }
 
   async execute(tool: RegisteredTool, input: Record<string, unknown>): Promise<unknown> {
-    if (tool.config.name === 'get_current_time') {
-      const timezone =
-        typeof input.timezone === 'string' && input.timezone.trim()
-          ? input.timezone.trim()
-          : Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const now = new Date();
-      let formatted: string;
-      try {
-        formatted = new Intl.DateTimeFormat('zh-CN', {
-          dateStyle: 'full',
-          timeStyle: 'long',
-          timeZone: timezone,
-        }).format(now);
-      } catch {
-        throw new Error(`Invalid timezone: ${timezone}`);
-      }
-      return { iso: now.toISOString(), timezone, formatted };
-    }
-
-    if (tool.config.name === 'calculator') {
-      const expression = typeof input.expression === 'string' ? input.expression.trim() : '';
-      if (!expression || expression.length > 200) {
-        throw new Error('expression must be between 1 and 200 characters');
-      }
-      if (!/^[0-9+\-*/%().\s^]+$/.test(expression)) {
-        throw new Error('expression contains unsupported characters');
-      }
-      const normalized = expression.replace(/\^/g, '**');
-      const result = Function(`"use strict"; return (${normalized});`)();
-      if (typeof result !== 'number' || !Number.isFinite(result)) {
-        throw new Error('expression did not produce a finite number');
-      }
-      return { expression, result };
+    if (this.toolHandlers.has(tool.config.name)) {
+      return this.toolHandlers.execute(tool.config.name, input);
     }
 
     if (tool.config.scriptPath) {
@@ -86,6 +63,10 @@ export class ToolRegistry {
     }
 
     throw new Error(`Tool ${tool.config.name} is not implemented`);
+  }
+
+  private isSupported(tool: StoredToolDefinition): boolean {
+    return this.toolHandlers.has(tool.name) || typeof tool.scriptPath === 'string';
   }
 }
 
@@ -101,12 +82,4 @@ function parseTools(serialized: string | null): StoredToolDefinition[] {
   } catch {
     return [];
   }
-}
-
-function isSupported(tool: StoredToolDefinition): boolean {
-  return (
-    tool.name === 'get_current_time' ||
-    tool.name === 'calculator' ||
-    typeof tool.scriptPath === 'string'
-  );
 }

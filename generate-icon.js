@@ -1,4 +1,4 @@
-// 生成 AI Agent Platform 应用图标
+// 生成星曜 Agent Platform 应用图标
 // 使用纯 Node.js 生成 PNG（无外部依赖）
 
 const fs = require('fs');

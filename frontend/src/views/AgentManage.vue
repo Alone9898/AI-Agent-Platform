@@ -172,7 +172,7 @@ function getAvatarColor(id: number): string {
 
 function getBannerColor(id: number): string {
   const c = COLORS[hashId(id)]
-  return `linear-gradient(135deg, ${c}22, ${c}08)`
+  return `${c}18`
 }
 
 function getAvatarChar(name: string): string {
@@ -246,6 +246,7 @@ async function handleBind() {
 <style scoped>
 .page-container {
   max-width: 1400px;
+  width: 100%;
 }
 
 .page-header {
@@ -281,45 +282,45 @@ async function handleBind() {
 .agent-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
+  gap: 16px;
   min-height: 200px;
 }
 
 /* ========== 单张名片 ========== */
 .agent-card {
   background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7ed;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(31, 36, 61, 0.04);
   overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   display: flex;
   flex-direction: column;
   position: relative;
 }
 
 .agent-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+  border-color: #cfc9f5;
+  box-shadow: 0 4px 12px rgba(31, 36, 61, 0.07);
 }
 
 /* 顶部彩带 */
 .card-banner {
-  height: 56px;
-  border-radius: 16px 16px 0 0;
+  height: 48px;
 }
 
 /* 头像 */
 .avatar-wrap {
   display: flex;
   justify-content: center;
-  margin-top: -28px;
+  margin-top: -24px;
   position: relative;
   z-index: 1;
 }
 
 .avatar {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -328,7 +329,7 @@ async function handleBind() {
   font-weight: 700;
   color: #fff;
   border: 3px solid #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 5px rgba(31, 36, 61, 0.14);
   letter-spacing: 0;
 }
 
@@ -461,7 +462,7 @@ async function handleBind() {
   cursor: pointer;
   justify-content: center;
   align-items: center;
-  min-height: 320px;
+  min-height: 300px;
   background: transparent;
 }
 
@@ -495,7 +496,7 @@ async function handleBind() {
   gap: 14px;
   padding: 12px 16px;
   background: #f8f9fa;
-  border-radius: 12px;
+  border-radius: 10px;
 }
 
 .bind-avatar {

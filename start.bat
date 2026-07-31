@@ -6,7 +6,7 @@ set "ROOT=%~dp0"
 set "LOG_FILE=%ROOT%start.log"
 pushd "%ROOT%" || exit /b 1
 
-title AI Agent Platform - Start
+title Xingyao Agent Platform - Start
 
 if /I "%~1"=="--admin" (
     shift /1
@@ -28,7 +28,7 @@ if errorlevel 1 (
 :after_admin_check
 
 echo ========================================
-echo   AI Agent Platform
+echo   Xingyao Agent Platform
 echo   Restart client and backend
 echo ========================================
 echo.

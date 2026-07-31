@@ -5,24 +5,13 @@
   <!-- 主布局 -->
   <el-container v-else class="app-container">
     <el-aside width="248px" class="app-aside">
-      <div class="aside-grid"></div>
-      <div class="aside-glow"></div>
-
       <div class="logo-area">
         <div class="logo-icon">
-          <el-icon :size="22"><Cpu /></el-icon>
+          <img :src="logoMark" alt="星曜 Agent Platform" />
         </div>
         <div class="logo-copy">
-          <strong class="logo-text">AI Agent</strong>
-          <span class="logo-subtitle">PLATFORM</span>
-        </div>
-      </div>
-
-      <div class="workspace-badge">
-        <span class="workspace-dot"></span>
-        <div>
-          <strong>LOCAL WORKSPACE</strong>
-          <span>桌面智能工作台</span>
+          <strong class="logo-text">星曜</strong>
+          <span class="logo-subtitle">Agent Platform</span>
         </div>
       </div>
 
@@ -89,20 +78,6 @@
     </el-aside>
 
     <el-container class="workspace-container">
-      <el-header height="78px" class="app-header">
-        <div class="header-context">
-          <span class="header-eyebrow">AI AGENT OPERATING SYSTEM</span>
-          <strong>智能工作台</strong>
-        </div>
-        <div class="runtime-status">
-          <span class="runtime-dot"></span>
-          <div>
-            <strong>本地模式</strong>
-            <span>数据与服务运行于本机</span>
-          </div>
-        </div>
-      </el-header>
-
       <el-main class="app-main">
         <router-view />
       </el-main>
@@ -155,9 +130,10 @@
 <script setup lang="ts">
 import { computed, ref, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { Cpu, User, MagicStick, Setting, Lock, ArrowDown, SwitchButton, ChatDotRound } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores'
+import logoMark from '@/assets/logo-mark.svg'
 
 const route = useRoute()
 const router = useRouter()
@@ -181,9 +157,10 @@ const roleLabel = computed(() => {
 // ===== 用户菜单 =====
 const profileDialogVisible = ref(false)
 const passwordDialogVisible = ref(false)
+const loggingOut = ref(false)
 const profileForm = reactive({ nickname: '' })
 
-function handleUserCommand(cmd: string) {
+async function handleUserCommand(cmd: string) {
   if (cmd === 'profile') {
     profileForm.nickname = authStore.user?.nickname || ''
     profileDialogVisible.value = true
@@ -193,15 +170,17 @@ function handleUserCommand(cmd: string) {
     pwdForm.confirmPassword = ''
     passwordDialogVisible.value = true
   } else if (cmd === 'logout') {
-    ElMessageBox.confirm('确定要退出登录吗？', '提示', {
-      confirmButtonText: '退出',
-      cancelButtonText: '取消',
-      type: 'warning',
-    }).then(() => {
-      authStore.logout()
-      router.push('/login')
+    if (loggingOut.value) return
+    loggingOut.value = true
+    try {
+      await authStore.logout()
+      await router.replace('/login')
       ElMessage.success('已退出登录')
-    }).catch(() => {})
+    } catch {
+      ElMessage.error('退出失败')
+    } finally {
+      loggingOut.value = false
+    }
   }
 }
 
@@ -303,36 +282,10 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-right: 1px solid rgba(255, 255, 255, 0.055);
-  background:
-    radial-gradient(circle at 14% 2%, rgba(122, 103, 246, 0.16), transparent 30%),
-    linear-gradient(165deg, #151a2f 0%, #181e35 60%, #1d233e 100%);
-  box-shadow: 10px 0 36px rgba(29, 33, 56, 0.08);
+  border-right: 1px solid #2b3043;
+  background: #1b2033;
+  box-shadow: 4px 0 16px rgba(29, 33, 56, 0.06);
   transition: width 0.25s ease;
-}
-
-.aside-grid {
-  position: absolute;
-  inset: 0;
-  opacity: 0.18;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-  background-size: 38px 38px;
-  mask-image: linear-gradient(to bottom, #000, transparent 62%);
-}
-
-.aside-glow {
-  position: absolute;
-  width: 220px;
-  height: 220px;
-  right: -140px;
-  top: 28%;
-  border-radius: 50%;
-  pointer-events: none;
-  background: rgba(116, 102, 239, 0.13);
-  box-shadow: 0 0 70px rgba(116, 102, 239, 0.16);
 }
 
 .logo-area {
@@ -351,11 +304,12 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 13px;
-  color: #fff;
-  background: linear-gradient(145deg, #8b7df8 0%, #6654d5 100%);
-  box-shadow: 0 12px 25px rgba(93, 75, 200, 0.3), inset 0 1px rgba(255, 255, 255, 0.24);
+}
+
+.logo-icon img {
+  width: 42px;
+  height: 42px;
+  display: block;
 }
 
 .logo-copy {
@@ -367,63 +321,24 @@ body {
 
 .logo-text {
   color: rgba(255, 255, 255, 0.96);
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.15;
   font-weight: 700;
-  letter-spacing: 0.2px;
+  letter-spacing: 0;
 }
 
 .logo-subtitle {
-  color: rgba(255, 255, 255, 0.3);
-  font-size: 8px;
+  color: rgba(255, 255, 255, 0.46);
+  font-size: 11px;
+  line-height: 1.1;
   font-weight: 600;
-  letter-spacing: 2.5px;
-}
-
-.workspace-badge {
-  position: relative;
-  z-index: 1;
-  margin: 2px 14px 30px;
-  padding: 12px 13px;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.035);
-}
-
-.workspace-dot {
-  width: 7px;
-  height: 7px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: #61dcad;
-  box-shadow: 0 0 0 5px rgba(97, 220, 173, 0.08), 0 0 14px rgba(97, 220, 173, 0.55);
-}
-
-.workspace-badge > div {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.workspace-badge strong {
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 9px;
-  font-weight: 650;
-  letter-spacing: 1.1px;
-}
-
-.workspace-badge span:last-child {
-  color: rgba(255, 255, 255, 0.3);
-  font-size: 10px;
+  letter-spacing: 0;
 }
 
 .menu-label {
   position: relative;
   z-index: 1;
-  margin: 0 24px 9px;
+  margin: 10px 24px 9px;
   color: rgba(255, 255, 255, 0.24);
   font-size: 9px;
   font-weight: 600;
@@ -446,18 +361,17 @@ body {
   border-radius: 11px;
   color: rgba(231, 234, 249, 0.55) !important;
   font-size: 13px;
-  transition: color 0.22s ease, background 0.22s ease, border-color 0.22s ease, transform 0.22s ease;
+  transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
 }
 
 .sidebar-menu .el-menu-item:hover {
   color: rgba(255, 255, 255, 0.9) !important;
   background: rgba(255, 255, 255, 0.045) !important;
-  transform: translateX(2px);
 }
 
 .sidebar-menu .el-menu-item.is-active {
-  border-color: rgba(151, 137, 255, 0.16);
-  background: linear-gradient(100deg, rgba(116, 102, 239, 0.2), rgba(116, 102, 239, 0.07)) !important;
+  border-color: rgba(151, 137, 255, 0.18);
+  background: rgba(116, 102, 239, 0.16) !important;
   color: #fff !important;
   font-weight: 600;
   box-shadow: inset 3px 0 0 #8f82fa;
@@ -529,8 +443,7 @@ body {
   color: #fff;
   font-size: 14px;
   font-weight: 700;
-  background: linear-gradient(145deg, #8173f2, #5f50c9);
-  box-shadow: 0 8px 16px rgba(83, 67, 181, 0.22);
+  background: #6d60d9;
 }
 
 .user-detail {
@@ -575,79 +488,12 @@ body {
   min-width: 0;
   height: 100vh;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 100% 0%, rgba(116, 102, 239, 0.055), transparent 26%),
-    var(--app-canvas);
-}
-
-.app-header {
-  flex-shrink: 0;
-  padding: 17px 28px 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: transparent;
-}
-
-.header-context {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.header-eyebrow {
-  color: #a4a8b8;
-  font-size: 8px;
-  font-weight: 650;
-  letter-spacing: 1.5px;
-}
-
-.header-context strong {
-  color: #262b3e;
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.runtime-status {
-  padding: 8px 11px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 1px solid rgba(222, 225, 234, 0.9);
-  border-radius: 11px;
-  background: rgba(255, 255, 255, 0.7);
-  box-shadow: 0 6px 18px rgba(40, 44, 68, 0.035);
-  backdrop-filter: blur(10px);
-}
-
-.runtime-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #4ecb98;
-  box-shadow: 0 0 0 5px rgba(78, 203, 152, 0.09), 0 0 10px rgba(78, 203, 152, 0.45);
-}
-
-.runtime-status > div {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.runtime-status strong {
-  color: #52576a;
-  font-size: 10px;
-  font-weight: 650;
-}
-
-.runtime-status span:last-child {
-  color: #a1a5b5;
-  font-size: 8px;
+  background: var(--app-canvas);
 }
 
 .app-main {
   min-width: 0;
-  padding: 18px 28px 28px;
+  padding: 28px;
   overflow-y: auto;
   background: transparent;
 }
@@ -676,15 +522,15 @@ body {
 }
 
 .el-button--primary:not(.is-link):not(.is-text) {
-  border-color: transparent;
-  background: linear-gradient(135deg, #796bf1 0%, #6654d5 100%);
-  box-shadow: 0 7px 16px rgba(102, 84, 213, 0.15);
+  border-color: #7466ef;
+  background: #7466ef;
+  box-shadow: none;
 }
 
 .el-button--primary:not(.is-link):not(.is-text):hover {
-  border-color: transparent;
-  filter: brightness(1.04);
-  box-shadow: 0 9px 20px rgba(102, 84, 213, 0.22);
+  border-color: #6557d9;
+  background: #6557d9;
+  box-shadow: none;
 }
 
 .el-input__wrapper,
@@ -697,14 +543,14 @@ body {
 .table-card,
 .settings-card {
   border-color: var(--app-border) !important;
-  box-shadow: 0 10px 28px rgba(31, 36, 61, 0.045) !important;
+  box-shadow: 0 1px 3px rgba(31, 36, 61, 0.05) !important;
 }
 
 .el-dialog {
   border: 1px solid rgba(230, 232, 239, 0.9);
-  border-radius: 18px !important;
+  border-radius: 12px !important;
   overflow: hidden;
-  box-shadow: 0 30px 80px rgba(28, 32, 54, 0.18) !important;
+  box-shadow: 0 20px 50px rgba(28, 32, 54, 0.16) !important;
 }
 
 .el-dialog__header {
@@ -730,17 +576,15 @@ body {
 }
 
 .app-main > div {
-  animation: fadeIn 0.32s ease;
+  animation: fadeIn 0.2s ease;
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(7px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -767,9 +611,7 @@ body {
   padding: 17px;
   border: 1px solid #e9e6fd;
   border-radius: 14px;
-  background:
-    radial-gradient(circle at 100% 0%, rgba(116, 102, 239, 0.12), transparent 42%),
-    #f7f6fe;
+  background: #f7f6fe;
 }
 
 .profile-avatar {
@@ -780,12 +622,11 @@ body {
   align-items: center;
   justify-content: center;
   border: 2px solid rgba(255, 255, 255, 0.8);
-  border-radius: 15px;
+  border-radius: 12px;
   color: #fff;
   font-size: 20px;
   font-weight: 700;
-  background: linear-gradient(145deg, #8375f2, #6251cf);
-  box-shadow: 0 10px 20px rgba(101, 83, 210, 0.22);
+  background: #6d60d9;
 }
 
 .profile-info h3 {
@@ -810,12 +651,6 @@ body {
     padding-right: 18px;
   }
 
-  .workspace-badge {
-    margin-left: 12px;
-    margin-right: 12px;
-  }
-
-  .app-header,
   .app-main {
     padding-left: 22px;
     padding-right: 22px;
@@ -833,7 +668,6 @@ body {
   }
 
   .logo-copy,
-  .workspace-badge,
   .menu-label,
   .sidebar-menu .el-menu-item span,
   .user-area-label,
@@ -848,10 +682,6 @@ body {
     gap: 0;
     margin-left: 10px;
     margin-right: 10px;
-  }
-
-  .sidebar-menu .el-menu-item:hover {
-    transform: none;
   }
 
   .sidebar-menu .el-menu-item.is-active {
@@ -872,11 +702,6 @@ body {
     height: 36px;
   }
 
-  .app-header {
-    padding-left: 18px;
-    padding-right: 18px;
-  }
-
   .app-main {
     padding-left: 18px;
     padding-right: 18px;
@@ -884,19 +709,6 @@ body {
 }
 
 @media (max-width: 560px) {
-  .app-header {
-    height: 66px !important;
-  }
-
-  .header-eyebrow,
-  .runtime-status span:last-child {
-    display: none;
-  }
-
-  .runtime-status {
-    padding: 8px 10px;
-  }
-
   .app-main {
     padding-top: 12px;
     padding-left: 14px;

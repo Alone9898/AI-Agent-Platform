@@ -216,6 +216,7 @@ async function checkUpdate() {
 <style scoped>
 .page-container {
   max-width: 1400px;
+  width: 100%;
 }
 
 .page-header {
@@ -251,14 +252,15 @@ async function checkUpdate() {
 
 .settings-card {
   background: #fff;
+  border: 1px solid #e5e7ed;
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(31, 36, 61, 0.04);
   overflow: hidden;
-  transition: box-shadow 0.25s ease;
+  transition: border-color 0.2s ease;
 }
 
 .settings-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #d7d9e2;
 }
 
 .card-header {
@@ -270,7 +272,7 @@ async function checkUpdate() {
 }
 
 .card-icon {
-  color: #667eea;
+  color: #7466ef;
 }
 
 .card-title {
