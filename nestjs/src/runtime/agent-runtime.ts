@@ -16,6 +16,10 @@ import {
 } from './runtime.types';
 
 const MAX_TOOL_ROUNDS = 5;
+const TOOL_LIMIT_FINALIZATION_PROMPT =
+  'Tool execution is complete. Do not request any more tools. Produce the best final answer now using the tool results already available. Clearly state any remaining uncertainty or missing information.';
+const TOOL_FAILURE_FINALIZATION_PROMPT =
+  'A required tool cannot run because its local configuration is incomplete. Do not request any more tools. Explain the missing configuration once and tell the user the concrete next step.';
 
 @Injectable()
 export class AgentRuntime {
@@ -42,6 +46,20 @@ export class AgentRuntime {
       throw new BadRequestException('The bound model configuration is incomplete');
     }
 
+    const temporarySkillIds = [...new Set(request.temporarySkillIds || [])];
+    const temporarySkills = temporarySkillIds.length
+      ? await this.prisma.skill.findMany({ where: { id: { in: temporarySkillIds } } })
+      : [];
+    if (temporarySkills.length !== temporarySkillIds.length) {
+      throw new BadRequestException('One or more temporary skills do not exist');
+    }
+    const activeSkills = [
+      ...agent.skills,
+      ...temporarySkills
+        .filter((skill) => !agent.skills.some(({ skill: bound }) => bound.id === skill.id))
+        .map((skill) => ({ agentId: agent.id, skillId: skill.id, skill })),
+    ];
+
     const memoryResult = await this.memory.prepareTurn({
       userId: request.userId,
       agentId: request.agentId,
@@ -50,14 +68,24 @@ export class AgentRuntime {
       message: request.message.trim(),
     });
     const steps: RuntimeStep[] = [memoryResult.step];
+    if (temporarySkills.length > 0) {
+      steps.push({
+        type: 'capability',
+        name: 'enable_temporary_skills',
+        status: 'completed',
+        durationMs: 0,
+        input: { skillIds: temporarySkills.map(({ id }) => id) },
+        output: { skills: temporarySkills.map(({ name }) => name) },
+      });
+    }
     const tools = this.toolRegistry.resolve(
-      agent.skills.map(({ skill }) => skill.tools),
+      activeSkills.map(({ skill }) => skill.tools),
     );
     const modelMessages: RuntimeModelMessage[] = [
       {
         role: 'system',
         content: buildSystemPrompt(
-          agent,
+          { ...agent, skills: activeSkills },
           tools.map((tool) => tool.definition.function.name),
         ),
       },
@@ -67,7 +95,24 @@ export class AgentRuntime {
       })),
     ];
 
-    for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
+    let finalizeAfterToolFailure = false;
+    const blockedTools = new Map<string, string>();
+    for (let round = 0; round <= MAX_TOOL_ROUNDS; round += 1) {
+      const finalizationReason = finalizeAfterToolFailure
+        ? 'tool_failure'
+        : round === MAX_TOOL_ROUNDS
+          ? 'tool_limit'
+          : null;
+      const isFinalizationRound = finalizationReason !== null;
+      if (isFinalizationRound) {
+        modelMessages.push({
+          role: 'system',
+          content: finalizationReason === 'tool_failure'
+            ? TOOL_FAILURE_FINALIZATION_PROMPT
+            : TOOL_LIMIT_FINALIZATION_PROMPT,
+        });
+      }
+
       const llmStartedAt = Date.now();
       let completion;
       try {
@@ -77,18 +122,26 @@ export class AgentRuntime {
           providerKey: agent.model.providerKey,
           modelName: agent.model.modelName,
           messages: modelMessages,
-          tools: tools.map((tool) => tool.definition),
+          tools: isFinalizationRound
+            ? undefined
+            : tools.map((tool) => tool.definition),
         });
         steps.push({
           type: 'llm',
-          name: round === 0 ? 'generate_response' : 'continue_after_tools',
+          name: isFinalizationRound
+            ? `finalize_after_${finalizationReason}`
+            : round === 0
+              ? 'generate_response'
+              : 'continue_after_tools',
           status: 'completed',
           durationMs: Date.now() - llmStartedAt,
           input: {
             configuredModel: agent.model.modelName,
             resolvedModel: completion.resolvedModel,
             messageCount: modelMessages.length,
-            availableTools: tools.map((tool) => tool.definition.function.name),
+            availableTools: isFinalizationRound
+              ? []
+              : tools.map((tool) => tool.definition.function.name),
           },
           output: {
             requestedTools: completion.toolCalls.map((call) => call.function.name),
@@ -99,7 +152,11 @@ export class AgentRuntime {
         const message = toErrorMessage(error);
         steps.push({
           type: 'llm',
-          name: round === 0 ? 'generate_response' : 'continue_after_tools',
+          name: isFinalizationRound
+            ? `finalize_after_${finalizationReason}`
+            : round === 0
+              ? 'generate_response'
+              : 'continue_after_tools',
           status: 'failed',
           durationMs: Date.now() - llmStartedAt,
           error: message,
@@ -108,11 +165,15 @@ export class AgentRuntime {
         throw new BadGatewayException(message);
       }
 
-      if (completion.toolCalls.length === 0) {
+      if (isFinalizationRound || completion.toolCalls.length === 0) {
         const final = completion.content.trim();
         if (!final) {
           await this.memory.rollbackTurn(memoryResult);
-          throw new BadGatewayException('Model returned no final answer');
+          throw new BadGatewayException(
+            isFinalizationRound
+              ? `Model returned no final answer after ${finalizationReason}`
+              : 'Model returned no final answer',
+          );
         }
         try {
           await this.memory.saveAssistantMessage(memoryResult.conversationId, final, steps);
@@ -138,28 +199,43 @@ export class AgentRuntime {
         let output: unknown;
         let status: 'completed' | 'failed' = 'completed';
         let errorMessage: string | undefined;
+        let shouldRecordStep = true;
 
-        try {
-          input = parseToolInput(toolCall.function.arguments);
-          if (!registeredTool) {
-            throw new Error(`Tool ${toolCall.function.name} is not available`);
-          }
-          output = await this.toolRegistry.execute(registeredTool, input);
-        } catch (error) {
+        const blockedReason = blockedTools.get(toolCall.function.name);
+        if (blockedReason) {
           status = 'failed';
-          errorMessage = toErrorMessage(error);
-          output = { error: errorMessage };
+          errorMessage = blockedReason;
+          output = { error: blockedReason, skipped: true };
+          shouldRecordStep = false;
+        } else {
+          try {
+            input = parseToolInput(toolCall.function.arguments);
+            if (!registeredTool) {
+              throw new Error(`Tool ${toolCall.function.name} is not available`);
+            }
+            output = await this.toolRegistry.execute(registeredTool, input);
+          } catch (error) {
+            status = 'failed';
+            errorMessage = toErrorMessage(error);
+            output = { error: errorMessage };
+            if (isNonRetryableToolError(errorMessage)) {
+              blockedTools.set(toolCall.function.name, errorMessage);
+              finalizeAfterToolFailure = true;
+            }
+          }
         }
 
-        steps.push({
-          type: 'tool',
-          name: toolCall.function.name,
-          status,
-          durationMs: Date.now() - toolStartedAt,
-          input,
-          output: compactOutput(output),
-          ...(errorMessage ? { error: errorMessage } : {}),
-        });
+        if (shouldRecordStep) {
+          steps.push({
+            type: 'tool',
+            name: toolCall.function.name,
+            status,
+            durationMs: Date.now() - toolStartedAt,
+            input,
+            output: compactOutput(output),
+            ...(errorMessage ? { error: errorMessage } : {}),
+          });
+        }
         modelMessages.push({
           role: 'tool',
           tool_call_id: toolCall.id,
@@ -169,7 +245,7 @@ export class AgentRuntime {
     }
 
     await this.memory.rollbackTurn(memoryResult);
-    throw new BadGatewayException(`Agent exceeded ${MAX_TOOL_ROUNDS} tool rounds`);
+    throw new BadGatewayException('Agent could not produce a final answer');
   }
 }
 
@@ -270,4 +346,8 @@ function toErrorMessage(error: unknown): string {
     }
   }
   return error instanceof Error ? error.message : String(error);
+}
+
+function isNonRetryableToolError(message: string): boolean {
+  return /(尚未配置|需要 API Key|需要填写服务地址|configuration is incomplete)/i.test(message);
 }

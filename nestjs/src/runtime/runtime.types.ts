@@ -9,9 +9,10 @@ export interface AgentRuntimeRequest {
   message: string;
   conversationId?: string;
   messages?: RuntimeHistoryMessage[];
+  temporarySkillIds?: number[];
 }
 
-export type RuntimeStepType = 'memory' | 'llm' | 'tool';
+export type RuntimeStepType = 'memory' | 'capability' | 'llm' | 'tool';
 export type RuntimeStepStatus = 'completed' | 'failed';
 
 export interface RuntimeStep {

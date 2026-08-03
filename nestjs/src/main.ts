@@ -85,6 +85,14 @@ async function bootstrap() {
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
     )`,
+    `CREATE TABLE IF NOT EXISTS tool_settings (
+      key TEXT PRIMARY KEY NOT NULL,
+      provider TEXT NOT NULL,
+      base_url TEXT,
+      api_key_encrypted TEXT,
+      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
   ];
 
   for (const sql of tables) {

@@ -304,7 +304,7 @@ async function handleDelete(id: number) {
 }
 
 .apikey-link {
-  color: #6557d9;
+  color: #356e69;
   font-size: 13px;
   white-space: nowrap;
   text-decoration: none;

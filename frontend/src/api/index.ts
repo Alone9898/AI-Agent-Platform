@@ -120,6 +120,14 @@ export const systemApi = {
   health: () => api.get('/health'),
 }
 
+export const toolSettingsApi = {
+  getWebSearchProviders: () => api.get('/tool-settings/web-search/providers'),
+  getWebSearch: () => api.get('/tool-settings/web-search'),
+  saveWebSearch: (data: { provider: string; apiKey?: string; baseUrl?: string }) =>
+    api.put('/tool-settings/web-search', data),
+  clearWebSearch: () => api.delete('/tool-settings/web-search'),
+}
+
 export const agentApi = {
   findAll: () => api.get('/agents'),
   findOne: (id: number) => api.get(`/agents/${id}`),
@@ -158,11 +166,17 @@ export const modelApi = {
 }
 
 export const chatApi = {
+  matchSkills: (data: { agentId: number; message: string; includeBoundSkills?: boolean }) =>
+    api.post('/chat/match-skills', data),
+  confirmSkills: (data: { requestId: string; skillIds: number[] }) =>
+    api.post('/chat/skill-consent', data),
   sendMessage: (data: {
     agentId: number
     message: string
     conversationId?: string
     messages?: Array<{ role: 'user' | 'assistant'; content: string }>
+    temporarySkillIds?: number[]
+    skillConsentToken?: string
   }) => api.post('/chat', data),
 }
 

@@ -25,6 +25,7 @@ nestjs/prisma/*.db-journal
 .env
 .env.local
 .env.*.local
+local-secrets.key
 
 # IDE
 .vscode/

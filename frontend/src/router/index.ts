@@ -11,7 +11,12 @@ const router = createRouter({
     },
     {
       path: '/',
-      redirect: '/agents',
+      redirect: '/home',
+    },
+    {
+      path: '/home',
+      name: 'Home',
+      component: () => import('@/views/Home.vue'),
     },
     {
       path: '/agents',
@@ -42,14 +47,14 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem('auth_token')
 
   // 公开页面直接放行
   if (to.meta.public) {
     // 已登录时访问登录页，跳转到首页
     if (token && to.path === '/login') {
-      next('/agents')
+      next('/home')
     } else {
       next()
     }

@@ -32,6 +32,109 @@
         </div>
       </div>
 
+      <div class="settings-card search-settings-card">
+        <div class="card-header">
+          <el-icon class="card-icon" :size="20"><Search /></el-icon>
+          <div class="card-heading">
+            <h3 class="card-title">联网搜索</h3>
+            <span class="card-subtitle">由用户选择服务商，凭据仅保存在本机</span>
+          </div>
+          <el-tag
+            class="config-status"
+            :type="webSearchConfig.configured ? 'success' : 'warning'"
+            effect="plain"
+          >
+            {{ webSearchConfig.configured ? '已配置' : '未配置' }}
+          </el-tag>
+        </div>
+        <div v-loading="loadingWebSearch" class="card-body">
+          <el-form label-position="top" class="search-form">
+            <div class="search-form-grid">
+              <el-form-item label="搜索服务商">
+                <el-select
+                  v-model="webSearchForm.provider"
+                  placeholder="选择搜索服务商"
+                  style="width: 100%"
+                  @change="handleSearchProviderChange"
+                >
+                  <el-option
+                    v-for="provider in webSearchProviders"
+                    :key="provider.key"
+                    :label="provider.name"
+                    :value="provider.key"
+                  >
+                    <div class="provider-option">
+                      <span>{{ provider.name }}</span>
+                      <small>{{ provider.region }}</small>
+                    </div>
+                  </el-option>
+                </el-select>
+              </el-form-item>
+
+              <el-form-item
+                v-if="selectedSearchProvider?.requiresApiKey || selectedSearchProvider?.key === 'searxng'"
+                :label="selectedSearchProvider?.key === 'searxng' ? '访问令牌（可选）' : 'API Key'"
+              >
+                <el-input
+                  v-model="webSearchForm.apiKey"
+                  show-password
+                  autocomplete="off"
+                  :placeholder="webSearchConfig.hasApiKey && webSearchConfig.provider === webSearchForm.provider
+                    ? '已配置，留空则保持不变'
+                    : selectedSearchProvider?.key === 'searxng'
+                      ? '仅在服务要求 Bearer Token 时填写'
+                      : '输入你自己的 API Key'"
+                />
+              </el-form-item>
+
+              <el-form-item v-if="selectedSearchProvider?.requiresBaseUrl" label="SearXNG 服务地址">
+                <el-input
+                  v-model="webSearchForm.baseUrl"
+                  placeholder="例如：http://127.0.0.1:8080"
+                />
+              </el-form-item>
+            </div>
+
+            <div v-if="selectedSearchProvider" class="provider-detail">
+              <div>
+                <strong>{{ selectedSearchProvider.region }}</strong>
+                <span>{{ selectedSearchProvider.description }}</span>
+              </div>
+              <a :href="selectedSearchProvider.apiKeyUrl" target="_blank" rel="noreferrer">
+                {{ selectedSearchProvider.key === 'searxng' ? '部署文档' : '获取 API Key' }}
+              </a>
+            </div>
+
+            <el-alert
+              title="API Key 会在本机加密保存，不上传星曜云端，也不会写入 Agent 或 Skill。"
+              type="info"
+              :closable="false"
+              show-icon
+            />
+
+            <div class="setting-actions search-actions">
+              <el-popconfirm
+                v-if="webSearchConfig.configured"
+                title="确定清除本机联网搜索配置吗？"
+                @confirm="clearWebSearchConfig"
+              >
+                <template #reference>
+                  <el-button :loading="savingWebSearch">清除配置</el-button>
+                </template>
+              </el-popconfirm>
+              <el-button
+                type="primary"
+                :loading="savingWebSearch"
+                :disabled="!webSearchForm.provider"
+                @click="saveWebSearchConfig"
+              >
+                保存联网配置
+              </el-button>
+            </div>
+          </el-form>
+        </div>
+      </div>
+
       <div class="settings-card">
         <div class="card-header">
           <el-icon class="card-icon" :size="20"><Monitor /></el-icon>
@@ -98,7 +201,32 @@
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { invoke } from '@tauri-apps/api/core'
-import { getApiBaseUrl, getApiErrorMessage, resetApiBaseUrl, setApiBaseUrl, systemApi } from '@/api'
+import {
+  getApiBaseUrl,
+  getApiErrorMessage,
+  resetApiBaseUrl,
+  setApiBaseUrl,
+  systemApi,
+  toolSettingsApi,
+} from '@/api'
+
+interface WebSearchProvider {
+  key: string
+  name: string
+  description: string
+  region: string
+  requiresApiKey: boolean
+  requiresBaseUrl: boolean
+  apiKeyUrl: string
+}
+
+interface WebSearchConfig {
+  provider: string | null
+  baseUrl: string | null
+  hasApiKey: boolean
+  configured: boolean
+  source: 'local' | 'environment' | 'none'
+}
 
 const autoStart = ref(false)
 const updateStatus = ref('')
@@ -115,6 +243,20 @@ const backendUrl = ref(getApiBaseUrl())
 const currentBackendUrl = ref(getApiBaseUrl())
 const testingBackend = ref(false)
 const savingBackendUrl = ref(false)
+const webSearchProviders = ref<WebSearchProvider[]>([])
+const webSearchConfig = ref<WebSearchConfig>({
+  provider: null,
+  baseUrl: null,
+  hasApiKey: false,
+  configured: false,
+  source: 'none',
+})
+const webSearchForm = ref({ provider: '', apiKey: '', baseUrl: '' })
+const loadingWebSearch = ref(false)
+const savingWebSearch = ref(false)
+const selectedSearchProvider = computed(() =>
+  webSearchProviders.value.find((provider) => provider.key === webSearchForm.value.provider) || null,
+)
 
 onMounted(async () => {
   try {
@@ -127,8 +269,68 @@ onMounted(async () => {
 
   backendUrl.value = getApiBaseUrl()
   currentBackendUrl.value = backendUrl.value
-  await checkBackendHealth()
+  await Promise.allSettled([checkBackendHealth(), loadWebSearchConfig()])
 })
+
+async function loadWebSearchConfig() {
+  loadingWebSearch.value = true
+  try {
+    const [providersResponse, configResponse] = await Promise.all([
+      toolSettingsApi.getWebSearchProviders(),
+      toolSettingsApi.getWebSearch(),
+    ])
+    webSearchProviders.value = providersResponse.data
+    webSearchConfig.value = configResponse.data
+    webSearchForm.value = {
+      provider: configResponse.data.provider || providersResponse.data[0]?.key || '',
+      apiKey: '',
+      baseUrl: configResponse.data.baseUrl || '',
+    }
+  } catch (error: any) {
+    ElMessage.error(getApiErrorMessage(error))
+  } finally {
+    loadingWebSearch.value = false
+  }
+}
+
+function handleSearchProviderChange(provider: string) {
+  webSearchForm.value.apiKey = ''
+  webSearchForm.value.baseUrl =
+    webSearchConfig.value.provider === provider ? webSearchConfig.value.baseUrl || '' : ''
+}
+
+async function saveWebSearchConfig() {
+  savingWebSearch.value = true
+  try {
+    const { data } = await toolSettingsApi.saveWebSearch({
+      provider: webSearchForm.value.provider,
+      apiKey: webSearchForm.value.apiKey.trim() || undefined,
+      baseUrl: webSearchForm.value.baseUrl.trim() || undefined,
+    })
+    webSearchConfig.value = data
+    webSearchForm.value.apiKey = ''
+    ElMessage.success('联网搜索配置已保存在本机')
+  } catch (error: any) {
+    ElMessage.error(getApiErrorMessage(error))
+  } finally {
+    savingWebSearch.value = false
+  }
+}
+
+async function clearWebSearchConfig() {
+  savingWebSearch.value = true
+  try {
+    const { data } = await toolSettingsApi.clearWebSearch()
+    webSearchConfig.value = data
+    webSearchForm.value.apiKey = ''
+    webSearchForm.value.baseUrl = data.baseUrl || ''
+    ElMessage.success('已清除本机联网搜索配置')
+  } catch (error: any) {
+    ElMessage.error(getApiErrorMessage(error))
+  } finally {
+    savingWebSearch.value = false
+  }
+}
 
 async function handleAutoStartChange(val: boolean) {
   try {
@@ -247,6 +449,7 @@ async function checkUpdate() {
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+  grid-auto-flow: dense;
   gap: 20px;
 }
 
@@ -271,8 +474,24 @@ async function checkUpdate() {
   border-bottom: 1px solid #f5f5f5;
 }
 
+.card-heading {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.card-subtitle {
+  color: #969aaa;
+  font-size: 11px;
+}
+
+.config-status {
+  margin-left: auto;
+}
+
 .card-icon {
-  color: #7466ef;
+  color: #4d857f;
 }
 
 .card-title {
@@ -334,6 +553,78 @@ async function checkUpdate() {
   color: #b0b7c8;
 }
 
+.search-settings-card {
+  grid-column: 1 / -1;
+}
+
+.search-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 18px;
+}
+
+.provider-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.provider-option small {
+  color: #9a9ead;
+}
+
+.provider-detail {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: -2px 0 16px;
+  padding: 10px 12px;
+  border: 1px solid #e8e9ee;
+  border-radius: 8px;
+  background: #fafbfc;
+}
+
+.provider-detail > div {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.provider-detail strong {
+  flex-shrink: 0;
+  color: #44495b;
+  font-size: 12px;
+}
+
+.provider-detail span {
+  color: #808596;
+  font-size: 11px;
+}
+
+.provider-detail a {
+  flex-shrink: 0;
+  color: #3f756f;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.provider-detail a:hover {
+  text-decoration: underline;
+}
+
+.search-actions {
+  justify-content: flex-end;
+}
+
+.search-actions .el-button {
+  flex: 0 0 auto;
+  min-width: 120px;
+}
+
 :deep(.el-divider) {
   margin: 16px 0;
 }
@@ -354,6 +645,20 @@ async function checkUpdate() {
 
   .setting-actions {
     flex-direction: column;
+  }
+
+  .search-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .provider-detail,
+  .provider-detail > div {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .search-actions .el-button {
+    width: 100%;
   }
 }
 </style>

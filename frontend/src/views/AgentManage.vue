@@ -10,6 +10,60 @@
       </el-button>
     </div>
 
+    <section class="preset-section" aria-labelledby="official-agent-heading">
+      <div class="section-header">
+        <div>
+          <h3 id="official-agent-heading" class="section-title">官方推荐</h3>
+          <p class="section-desc">已配置工作方式与所需技能，可直接加入团队</p>
+        </div>
+        <el-tag size="small" effect="plain">本地模板</el-tag>
+      </div>
+
+      <article class="featured-agent">
+        <div class="preset-mark" aria-hidden="true">
+          <el-icon :size="24"><Search /></el-icon>
+        </div>
+        <div class="preset-copy">
+          <div class="preset-title-row">
+            <h4>{{ HOTSPOT_RADAR_PRESET.name }}</h4>
+            <el-tag size="small" type="success" effect="plain">官方</el-tag>
+          </div>
+          <p>{{ HOTSPOT_RADAR_PRESET.description }}</p>
+          <div class="preset-capabilities">
+            <span v-for="capability in HOTSPOT_RADAR_PRESET.capabilities" :key="capability">
+              {{ capability }}
+            </span>
+          </div>
+        </div>
+        <div class="preset-actions">
+          <el-button
+            v-if="hotspotAgent"
+            type="primary"
+            :icon="ArrowRight"
+            @click="openPresetAgent(hotspotAgent.id)"
+          >
+            开始对话
+          </el-button>
+          <el-button
+            v-else
+            type="primary"
+            :icon="Plus"
+            :loading="presetCreating"
+            @click="showPresetDialog"
+          >
+            添加到团队
+          </el-button>
+        </div>
+      </article>
+    </section>
+
+    <div class="library-heading">
+      <div>
+        <h3 class="section-title">我的团队</h3>
+        <p class="section-desc">{{ agentStore.agents.length }} 位成员</p>
+      </div>
+    </div>
+
     <!-- 卡片网格 -->
     <div v-loading="agentStore.loading" class="agent-grid">
       <!-- 每个 Agent 一张名片 -->
@@ -86,6 +140,49 @@
       </div>
     </div>
 
+    <el-dialog v-model="presetDialogVisible" title="启用热点雷达" width="480px" destroy-on-close>
+      <div class="preset-dialog-intro">
+        <div class="preset-dialog-mark"><el-icon><Search /></el-icon></div>
+        <div>
+          <h4>{{ HOTSPOT_RADAR_PRESET.name }}</h4>
+          <p>{{ HOTSPOT_RADAR_PRESET.description }}</p>
+        </div>
+      </div>
+      <el-form label-position="top" class="dialog-form preset-form">
+        <el-form-item label="选择模型">
+          <el-select v-model="presetModelId" placeholder="选择热点雷达使用的模型" style="width: 100%">
+            <el-option v-for="model in modelStore.models" :key="model.id" :label="model.name" :value="model.id" />
+          </el-select>
+        </el-form-item>
+        <div class="required-tools">
+          <span class="required-tools-label">自动配置</span>
+          <span>时间、联网搜索、网页读取、HTTP 请求</span>
+        </div>
+        <el-alert
+          :title="webSearchConfig.configured
+            ? `已配置 ${webSearchProviderName}，热点雷达可以使用联网搜索`
+            : '请先在系统设置中配置联网搜索服务'"
+          :type="webSearchConfig.configured ? 'success' : 'warning'"
+          :closable="false"
+          show-icon
+        />
+      </el-form>
+      <template #footer>
+        <el-button @click="presetDialogVisible = false">取消</el-button>
+        <el-button v-if="!webSearchConfig.configured" @click="goToSearchSettings">
+          配置联网搜索
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="presetCreating"
+          :disabled="!webSearchConfig.configured"
+          @click="createHotspotRadar"
+        >
+          添加并开始对话
+        </el-button>
+      </template>
+    </el-dialog>
+
     <!-- 新增/编辑对话框 -->
     <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑成员' : '招募新成员'" width="500px" destroy-on-close>
       <el-form :model="form" label-width="90px" class="dialog-form">
@@ -137,11 +234,15 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Plus, Edit, Delete, Link, Cpu, MagicStick, ChatLineSquare } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Link, Cpu, MagicStick, ChatLineSquare, Search, ArrowRight } from '@element-plus/icons-vue'
 import { useAgentStore, useSkillStore, useModelStore } from '@/stores'
+import { agentPresetStorageKey, HOTSPOT_RADAR_PRESET } from '@/presets/agent-presets'
+import { toolSettingsApi } from '@/api'
 
+const router = useRouter()
 const agentStore = useAgentStore()
 const skillStore = useSkillStore()
 const modelStore = useModelStore()
@@ -151,9 +252,28 @@ const bindDialogVisible = ref(false)
 const isEdit = ref(false)
 const editId = ref<number>(0)
 const currentAgent = ref<any>(null)
+const presetDialogVisible = ref(false)
+const presetModelId = ref<number | null>(null)
+const presetCreating = ref(false)
+const webSearchConfig = ref({
+  provider: null as string | null,
+  configured: false,
+})
+const webSearchProviderName = computed(() => ({
+  bocha: '博查 Web Search',
+  tavily: 'Tavily',
+  searxng: 'SearXNG',
+}[webSearchConfig.value.provider || ''] || '联网搜索'))
 
 const form = ref({ name: '', description: '', systemPrompt: '' })
 const bindForm = ref({ modelId: null as number | null, skillIds: [] as number[] })
+const hotspotAgent = computed(() => {
+  const storedId = Number(localStorage.getItem(agentPresetStorageKey(HOTSPOT_RADAR_PRESET.key)))
+  const storedAgent = Number.isFinite(storedId)
+    ? agentStore.agents.find((agent) => agent.id === storedId)
+    : null
+  return storedAgent || agentStore.agents.find((agent) => agent.name === HOTSPOT_RADAR_PRESET.name) || null
+})
 
 // 根据 id 生成稳定的彩色值
 const COLORS = [
@@ -181,11 +301,128 @@ function getAvatarChar(name: string): string {
   return name.charAt(name.length - 1)
 }
 
-onMounted(() => {
-  agentStore.fetchAgents()
-  skillStore.fetchSkills()
-  modelStore.fetchModels()
+onMounted(async () => {
+  await Promise.allSettled([
+    agentStore.fetchAgents(),
+    skillStore.fetchSkills(),
+    skillStore.fetchPresets(),
+    modelStore.fetchModels(),
+    refreshWebSearchConfig(),
+  ])
 })
+
+async function showPresetDialog() {
+  if (hotspotAgent.value) {
+    openPresetAgent(hotspotAgent.value.id)
+    return
+  }
+  if (modelStore.models.length === 0) {
+    ElMessage.warning('请先添加一个可用模型')
+    router.push('/models')
+    return
+  }
+  presetModelId.value = modelStore.models.find((model: any) => model.hasApiKey)?.id
+    || modelStore.models[0]?.id
+    || null
+  await refreshWebSearchConfig()
+  presetDialogVisible.value = true
+}
+
+async function refreshWebSearchConfig() {
+  try {
+    const { data } = await toolSettingsApi.getWebSearch()
+    webSearchConfig.value = data
+  } catch {
+    webSearchConfig.value = { provider: null, configured: false }
+  }
+}
+
+function goToSearchSettings() {
+  presetDialogVisible.value = false
+  router.push('/settings')
+}
+
+function openPresetAgent(agentId: number) {
+  localStorage.setItem(agentPresetStorageKey(HOTSPOT_RADAR_PRESET.key), String(agentId))
+  router.push({ path: '/chat', query: { agentId: String(agentId) } })
+}
+
+function getSkillToolNames(skill: any): string[] {
+  try {
+    const tools = JSON.parse(skill?.tools || '[]')
+    if (!Array.isArray(tools)) return []
+    return tools
+      .map((tool: any) => tool?.name)
+      .filter((name: unknown): name is string => typeof name === 'string')
+  } catch {
+    return []
+  }
+}
+
+async function ensurePresetSkills(): Promise<number[]> {
+  await Promise.all([skillStore.fetchSkills(), skillStore.fetchPresets()])
+  const skillIds: number[] = []
+
+  for (const requirement of HOTSPOT_RADAR_PRESET.requiredSkills) {
+    let skill = skillStore.skills.find((item: any) =>
+      getSkillToolNames(item).includes(requirement.toolName),
+    )
+
+    if (!skill) {
+      const preset = skillStore.presets.find((item: any) => item.key === requirement.presetKey)
+      if (!preset) {
+        throw new Error(`缺少工具模板：${requirement.toolName}`)
+      }
+      skill = await skillStore.importPreset(preset)
+    }
+    skillIds.push(skill.id)
+  }
+
+  return [...new Set(skillIds)]
+}
+
+async function createHotspotRadar() {
+  if (!webSearchConfig.value.configured) {
+    ElMessage.warning('请先配置联网搜索服务')
+    goToSearchSettings()
+    return
+  }
+  if (!presetModelId.value || presetCreating.value) {
+    if (!presetModelId.value) ElMessage.warning('请选择一个模型')
+    return
+  }
+
+  presetCreating.value = true
+  let createdAgent: any = null
+  try {
+    const skillIds = await ensurePresetSkills()
+    createdAgent = await agentStore.createAgent({
+      name: HOTSPOT_RADAR_PRESET.name,
+      description: HOTSPOT_RADAR_PRESET.description,
+      systemPrompt: HOTSPOT_RADAR_PRESET.systemPrompt,
+    })
+    await agentStore.bindModel(createdAgent.id, presetModelId.value)
+    await agentStore.bindSkills(createdAgent.id, skillIds)
+    localStorage.setItem(
+      agentPresetStorageKey(HOTSPOT_RADAR_PRESET.key),
+      String(createdAgent.id),
+    )
+    presetDialogVisible.value = false
+    ElMessage.success('热点雷达已加入团队')
+    openPresetAgent(createdAgent.id)
+  } catch (error: any) {
+    if (createdAgent?.id) {
+      try {
+        await agentStore.deleteAgent(createdAgent.id)
+      } catch {
+        // Keep the original creation error visible to the user.
+      }
+    }
+    ElMessage.error(error?.response?.data?.message || error?.message || '热点雷达创建失败')
+  } finally {
+    presetCreating.value = false
+  }
+}
 
 function showDialog(row?: any) {
   isEdit.value = !!row
@@ -223,6 +460,10 @@ async function handleSave() {
 async function handleDelete(id: number) {
   try {
     await agentStore.deleteAgent(id)
+    const presetKey = agentPresetStorageKey(HOTSPOT_RADAR_PRESET.key)
+    if (localStorage.getItem(presetKey) === String(id)) {
+      localStorage.removeItem(presetKey)
+    }
     ElMessage.success('已移除该成员')
   } catch {
     ElMessage.error('删除失败')
@@ -278,6 +519,166 @@ async function handleBind() {
   font-weight: 500;
 }
 
+/* ========== 官方 Agent 模板 ========== */
+.preset-section {
+  margin-bottom: 28px;
+}
+
+.section-header,
+.library-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.section-header {
+  margin-bottom: 12px;
+}
+
+.section-title {
+  margin: 0;
+  color: #303548;
+  font-size: 15px;
+  font-weight: 680;
+}
+
+.section-desc {
+  margin: 3px 0 0;
+  color: #9498a8;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.featured-agent {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  border: 1px solid #e4e5eb;
+  border-left: 3px solid #4d857f;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(31, 36, 61, 0.04);
+}
+
+.preset-mark,
+.preset-dialog-mark {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  color: #3f756f;
+  background: #eaf3f1;
+}
+
+.preset-mark {
+  width: 48px;
+  height: 48px;
+  border: 1px solid #d6e8e4;
+  border-radius: 9px;
+}
+
+.preset-copy {
+  min-width: 0;
+}
+
+.preset-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preset-title-row h4,
+.preset-dialog-intro h4 {
+  margin: 0;
+  color: #282d40;
+  font-size: 16px;
+  font-weight: 680;
+}
+
+.preset-copy > p,
+.preset-dialog-intro p {
+  margin: 4px 0 0;
+  color: #7f8495;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.preset-capabilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 10px;
+}
+
+.preset-capabilities span {
+  position: relative;
+  padding-left: 10px;
+  color: #656a7c;
+  font-size: 11px;
+}
+
+.preset-capabilities span::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #8b80df;
+  transform: translateY(-50%);
+}
+
+.preset-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.library-heading {
+  margin-bottom: 12px;
+  padding-top: 2px;
+}
+
+.preset-dialog-intro {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 0 16px;
+  border-bottom: 1px solid #eff0f4;
+}
+
+.preset-dialog-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+}
+
+.preset-form {
+  padding-top: 18px;
+}
+
+.required-tools {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 8px;
+  margin: -2px 0 16px;
+  padding: 10px 12px;
+  border: 1px solid #e9eaf0;
+  border-radius: 8px;
+  color: #74798b;
+  font-size: 12px;
+  line-height: 1.6;
+  background: #fafbfc;
+}
+
+.required-tools-label {
+  color: #3d4255;
+  font-weight: 650;
+}
+
 /* ========== 卡片网格 ========== */
 .agent-grid {
   display: grid;
@@ -300,7 +701,7 @@ async function handleBind() {
 }
 
 .agent-card:hover {
-  border-color: #cfc9f5;
+  border-color: #c4dcd8;
   box-shadow: 0 4px 12px rgba(31, 36, 61, 0.07);
 }
 
@@ -527,5 +928,48 @@ async function handleBind() {
 /* ========== 对话框 ========== */
 .dialog-form {
   padding: 8px 0;
+}
+
+@media (max-width: 960px) {
+  .featured-agent {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .preset-actions {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 620px) {
+  .page-header {
+    gap: 16px;
+  }
+
+  .page-desc {
+    display: none;
+  }
+
+  .featured-agent {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .preset-mark {
+    width: 42px;
+    height: 42px;
+  }
+
+  .preset-actions {
+    grid-column: 1;
+  }
+
+  .preset-actions :deep(.el-button) {
+    width: 100%;
+  }
+
+  .agent-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

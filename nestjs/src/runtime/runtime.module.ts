@@ -17,6 +17,6 @@ import { ToolRegistry } from './tool-registry';
     ToolExecutor,
     ToolRegistry,
   ],
-  exports: [AgentRuntime],
+  exports: [AgentRuntime, ToolRegistry],
 })
 export class RuntimeModule {}

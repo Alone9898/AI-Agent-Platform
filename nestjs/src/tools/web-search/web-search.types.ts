@@ -3,6 +3,11 @@ export interface WebSearchRequest {
   maxResults?: number;
 }
 
+export interface WebSearchProviderConfig {
+  apiKey?: string;
+  baseUrl?: string;
+}
+
 export interface WebSearchResult {
   title: string;
   url: string;
@@ -11,6 +16,7 @@ export interface WebSearchResult {
 }
 
 export interface WebSearchResponse {
+  provider: string;
   query: string;
   results: WebSearchResult[];
 }

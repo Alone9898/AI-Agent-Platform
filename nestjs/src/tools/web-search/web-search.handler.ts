@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { ToolSettingsService } from '../../tool-settings/tool-settings.service';
 import { ToolHandler, ToolHandlerDefinition } from '../tool-handler.types';
+import { BochaProvider } from './providers/bocha.provider';
+import { SearxngProvider } from './providers/searxng.provider';
 import { TavilyProvider } from './providers/tavily.provider';
 
 @Injectable()
@@ -23,7 +26,12 @@ export class WebSearchHandler implements ToolHandler {
     },
   };
 
-  constructor(private readonly provider: TavilyProvider) {}
+  constructor(
+    private readonly toolSettings: ToolSettingsService,
+    private readonly bochaProvider: BochaProvider,
+    private readonly tavilyProvider: TavilyProvider,
+    private readonly searxngProvider: SearxngProvider,
+  ) {}
 
   async execute(input: Record<string, unknown>) {
     const query = typeof input.query === 'string' ? input.query.trim() : '';
@@ -36,6 +44,12 @@ export class WebSearchHandler implements ToolHandler {
         ? Math.max(1, Math.min(10, Math.floor(input.maxResults)))
         : 5;
 
-    return this.provider.search({ query, maxResults });
+    const config = await this.toolSettings.getWebSearchRuntimeConfig();
+    const provider = {
+      bocha: this.bochaProvider,
+      tavily: this.tavilyProvider,
+      searxng: this.searxngProvider,
+    }[config.provider];
+    return provider.search({ query, maxResults }, config);
   }
 }

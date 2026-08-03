@@ -17,6 +17,7 @@ pub async fn start_sidecar(app: &AppHandle) {
 
     let db_path = data_dir.join("data.db");
     let db_url = format!("file:{}", db_path.to_string_lossy());
+    let secret_key_path = data_dir.join("local-secrets.key");
 
     log::info!("Starting NestJS sidecar with DATABASE_URL: {}", db_url);
 
@@ -41,6 +42,7 @@ pub async fn start_sidecar(app: &AppHandle) {
     cmd.current_dir(&nestjs_dir)
         .arg("dist/main.js")
         .env("DATABASE_URL", &db_url)
+        .env("XINGYAO_SECRET_KEY_PATH", &secret_key_path)
         .env("PORT", "3000");
 
     #[cfg(windows)]

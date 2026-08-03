@@ -7,11 +7,12 @@
 当前项目的重点能力：
 
 - Agent 管理：支持 Agent 基本信息、系统提示词、模型绑定和技能绑定
-- Chat 对话系统：支持选择 Agent 后直接发起对话，并保存会话上下文
+- 本地 Agent 模板：内置“热点雷达”，可一键配置模型和所需工具后开始对话
+- Chat 对话系统：支持需求匹配、用户确认临时能力、直接对话和会话上下文保存
 - Skill 技能库：支持 `prompt / tool / mixed` 三种类型，已针对大量技能做分页、搜索和过滤优化
 - Model 管理：支持厂商预设和自定义模型配置
 - Agent Runtime：负责组装 Agent、Model、Skill、会话记忆和工具调用
-- 真实工具层：支持时间、计算器、联网搜索、公开网页读取和通用 HTTP GET 请求
+- 真实工具层：支持时间、计算器、可配置 Provider 的联网搜索、公开网页读取和通用 HTTP GET 请求
 - 认证与个人信息：后端 JWT 登录，默认管理员会自动初始化
 - 桌面能力：系统托盘、单实例、关闭隐藏到托盘、Sidecar 启动后端服务
 - 云端服务：已建立 Gin 模块化单体骨架，提供注册、登录、当前用户、健康检查和 PostgreSQL 初始迁移
@@ -73,6 +74,8 @@
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
+| POST | `/chat/match-skills` | 根据本次需求匹配当前 Agent 尚未绑定的本地 Skill |
+| POST | `/chat/skill-consent` | 用户确认后签发一次性临时能力授权 |
 | POST | `/chat` | 向指定 Agent 发送消息 |
 
 请求核心字段：
@@ -81,28 +84,48 @@
 - `message`：用户当前输入
 - `conversationId`：可选，继续已有会话时传入
 - `messages`：可选，前端当前上下文消息
+- `temporarySkillIds`：可选，本次请求临时启用的 Skill ID 列表
+- `skillConsentToken`：可选，必须与临时 Skill、用户、Agent 和原始消息一致的一次性授权
 
 返回核心字段：
 
 - `conversationId`：本轮对话所属会话 ID
 - `final`：模型最终回复
-- `steps`：运行过程，包括记忆、模型调用和工具调用步骤
+- `steps`：运行过程，包括记忆、临时能力启用、模型调用和工具调用步骤
 
-### 4.2 Runtime 流程
+### 4.2 需求匹配与用户确认
+
+Chat 在真正调用模型前会先执行确定性能力匹配：
+
+1. 根据用户输入识别联网、网页读取、时间、计算、写作、编程等意图
+2. 只在本机已安装且当前 Agent 尚未绑定的 Skill 中选择，最多返回 3 项
+3. 已有真实 Handler 或 `scriptPath` 的工具 Skill 才会被推荐；仅声明但无法执行的工具不会进入结果
+4. 前端展示能力名称、匹配原因和风险等级，由用户选择“同意并启用”或“不用，继续对话”
+5. 用户同意后，后端签发一次性授权；授权绑定当前用户、Agent、原始消息和 Skill 列表
+6. `/chat` 验证授权后只在本次请求中合并 Skill，不写入 `AgentSkill`，也不创建临时 Agent
+7. 用户拒绝、没有匹配或匹配服务暂不可用时，继续使用当前 Agent 的原有能力
+
+匹配提案 5 分钟失效，确认后的授权 2 分钟失效且成功使用一次后立即删除。当前是基于规则和本地 Skill 元数据的第一版，后续可以在不改变授权边界的前提下升级匹配精度。
+
+Home 页提交需求时会写入草稿，并携带一次性发送和自动配置标记进入 Chat。Chat 会对所有已安装 Skill 做匹配，在用户确认后按能力组合创建或复用专用任务助手，继承当前 Agent 的 Model 并长期绑定匹配能力，然后再发送消息。相同能力组合不会重复创建 Agent；快速开始和最近任务入口仍然只负责打开对应会话。
+
+如果任务需要 `web_search` 但搜索 Provider 尚未配置，Chat 不会继续调用模型，而是保留草稿并引导用户进入系统设置。Runtime 遇到同一类不可重试的工具配置错误时，会跳过同批次的重复调用并要求模型直接说明配置步骤。
+
+### 4.3 Runtime 流程
 
 `nestjs/src/runtime/agent-runtime.ts` 是对话运行时核心，主要负责：
 
 - 校验当前用户、Agent 和消息内容
-- 加载 Agent 绑定的 Model 和 Skill
+- 加载 Agent 绑定的 Model 和 Skill，并合并本次已授权的临时 Skill
 - 组合 Agent 系统提示词与 Skill 提示词
 - 准备会话记忆，并把当前用户消息写入会话
 - 调用 OpenAI 兼容模型接口
 - 根据模型返回的 tool calls 执行本地工具
-- 最多允许 5 轮工具调用
+- 最多允许 5 轮工具调用；达到上限后会关闭工具并要求模型基于已有结果完成回答
 - 生成最终回复后保存助手消息
-- 模型失败或超过工具轮次时回滚当前对话轮次
+- 模型请求失败或最终仍无法生成回答时回滚当前对话轮次
 
-### 4.3 工具调用
+### 4.4 工具调用
 
 Runtime 下的关键文件：
 
@@ -116,7 +139,7 @@ Runtime 下的关键文件：
 
 - `get_current_time`：获取当前日期、时间和时区信息
 - `calculator`：执行四则运算、括号和幂运算
-- `web_search`：通过 Tavily 搜索互联网，返回标题、URL 和摘要
+- `web_search`：通过用户本机配置的博查、Tavily 或 SearXNG 搜索互联网，返回标题、URL 和摘要
 - `web_fetch`：读取公开 HTTP/HTTPS 网页内容，返回清洗后的文本
 - `http_request`：向公开 HTTP/HTTPS 地址发送 GET 请求，读取公开 API 或网页原始响应
 
@@ -130,13 +153,38 @@ Runtime 下的关键文件：
 - `web_fetch` 会拒绝 localhost、内网地址、非 HTTP/HTTPS 协议和不支持的内容类型
 - `http_request` 只允许 GET 请求，会限制响应体大小、重定向次数、请求头白名单，并拒绝 localhost、内网地址和非 HTTP/HTTPS 协议
 - Agent 未绑定对应工具时，系统提示词会要求模型不要猜测当前时间、联网结果或网页内容，并用中文说明当前 Agent 未启用对应工具
-- `write_file`、`execute_code` 这类高权限能力暂不默认开放，后续需要确认、白名单和审计后再接入
+- `write_file`、`execute_code` 这类高权限内置 Handler 暂不开放；自定义 `scriptPath` 工具会标记为高权限并要求本次确认，后续仍需补充路径白名单和执行审计
 
-`web_search` 依赖环境变量：
+联网搜索在“系统设置 → 联网搜索”中配置，当前支持：
 
-```bash
-TAVILY_API_KEY=你的 Tavily Key
-```
+- `bocha`：博查 Web Search，适合中文内容和中国境内网络环境，需要用户自己的 API Key
+- `tavily`：Tavily，适合国际网络环境，需要用户自己的 API Key
+- `searxng`：连接用户自建或企业部署的 SearXNG 服务，必须填写服务地址，API Key 非必需
+
+API Key 不写入前端 `localStorage`、Agent 或 Skill。NestJS 会使用每次安装独立生成的 AES-256-GCM 主密钥加密后写入本机 SQLite；主密钥文件由 Tauri 放在应用数据目录。查询配置的接口只返回 `hasApiKey`，不会返回密钥明文，也不会同步到 Gin 云端。
+
+开发环境仍兼容 `TAVILY_API_KEY`，也可以使用通用环境变量 `WEB_SEARCH_PROVIDER`、`WEB_SEARCH_API_KEY`、`WEB_SEARCH_BASE_URL`，但普通桌面用户无需配置系统环境变量。
+
+### 4.5 本地 Agent 模板：热点雷达
+
+“热点雷达”是随前端发布的本地 Agent 模板，不新增后端接口，也不引入新的数据库字段。模板定义位于 `frontend/src/presets/agent-presets.ts`，包含系统提示词、能力标签、快捷提问和所需 Skill 清单。
+
+用户在 Agent 管理页点击“添加到团队”后，前端会：
+
+1. 让用户选择一个现有 Model
+2. 按工具函数名检查时间、联网搜索、网页读取和 HTTP 请求 Skill
+3. 通过现有 `/skills/presets` 和 Skill CRUD 接口导入缺失的预置 Skill
+4. 通过现有 Agent CRUD 接口创建“热点雷达”，绑定所选 Model 和上述 Skill
+5. 使用本地存储记录该模板对应的 Agent ID，并跳转到聊天页
+
+如果模型或 Skill 绑定失败，前端会删除本次未完成的 Agent，避免留下半配置数据。聊天页识别到“热点雷达”且当前会话为空时，会展示三条快捷提问；点击后只填入输入框，不会自动发送。
+
+运行边界：
+
+- 联网搜索依赖用户在本机设置中配置的 Provider；中国境内优先选择博查，自建场景可选择 SearXNG
+- 网页读取和 HTTP 请求继续遵循现有公网地址、响应大小和内容类型限制
+- Agent 会要求模型先确认时间、核验来源，并明确标注单一来源或待核实信息
+- 模板只保存在前端代码和浏览器本地映射中，不从远程服务动态下载
 
 ---
 
@@ -220,6 +268,7 @@ Skill 是目前最适合大量数据管理的模块，也是后续扩展 Agent �
 - `frontend/src/api/index.ts`：Axios 封装和 API 定义
 - `frontend/src/stores/index.ts`：Pinia 状态管理
 - `frontend/src/views/Chat.vue`：对话页容器
+- `frontend/src/presets/agent-presets.ts`：本地 Agent 模板定义
 - `frontend/src/components/chat/ChatSidebar.vue`：Agent 列表、会话入口和本地状态
 - `frontend/src/components/chat/ChatWindow.vue`：消息列表、空状态、滚动容器和运行步骤展示
 - `frontend/src/components/chat/ChatInput.vue`：聊天输入区
@@ -230,6 +279,15 @@ Skill 是目前最适合大量数据管理的模块，也是后续扩展 Agent �
 - 切换 Agent 时恢复对应本地聊天状态
 - 短对话保持贴近底部，长对话支持正常滚动查看上下文
 - 发送中、失败、空状态都有独立界面反馈
+
+设置页的联网搜索配置通过本地接口保存：
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/tool-settings/web-search/providers` | 获取支持的搜索 Provider 与地区说明 |
+| GET | `/tool-settings/web-search` | 获取配置状态，不返回 API Key 明文 |
+| PUT | `/tool-settings/web-search` | 加密保存本机 Provider、API Key 或 SearXNG 地址 |
+| DELETE | `/tool-settings/web-search` | 清除本机联网搜索配置 |
 
 ---
 
@@ -338,6 +396,7 @@ D:\AIAgentPlatform\
 │  │  ├─ api/                        Axios 封装和 API 定义
 │  │  ├─ components/
 │  │  │  └─ chat/                    聊天页拆分组件
+│  │  ├─ presets/                    本地 Agent 模板
 │  │  ├─ router/                     路由与守卫
 │  │  ├─ stores/                     Pinia 状态
 │  │  ├─ views/                      页面
@@ -352,6 +411,7 @@ D:\AIAgentPlatform\
 │  │  ├─ prisma/                     PrismaService
 │  │  ├─ runtime/                    Agent Runtime
 │  │  ├─ skill/                      Skill 模块
+│  │  ├─ tool-settings/              本地工具 Provider 与加密凭据配置
 │  │  └─ tools/                      真实工具 handler
 │  └─ prisma/schema.prisma
 ├─ gin-server/                       云端 API（Go + Gin）
@@ -386,11 +446,13 @@ D:\AIAgentPlatform\
 - `nestjs/src/runtime/tool-registry.ts` 负责把 Skill 工具声明解析成运行时工具
 - `nestjs/src/runtime/tool-executor.ts` 负责兼容执行 `scriptPath` Python 工具
 - `nestjs/src/tools/tool-handler.registry.ts` 负责注册真实工具 handler
-- `nestjs/src/tools/web-search/` 负责联网搜索工具，当前 provider 为 Tavily
+- `nestjs/src/tool-settings/` 负责搜索 Provider 配置、配置状态接口和本地 API Key 加密
+- `nestjs/src/tools/web-search/` 负责博查、Tavily、SearXNG 搜索 Provider 与统一工具入口
 - `nestjs/src/tools/web-fetch/` 负责公开网页读取和文本清洗
 - `nestjs/src/tools/http-request/` 负责公开 HTTP GET 请求、JSON 自动解析和响应截断
 - `nestjs/src/skill/skill.controller.ts` 和 `nestjs/src/skill/skill.service.ts` 负责 Skill 的分页查询和 CRUD
 - `frontend/src/views/Chat.vue` 和 `frontend/src/components/chat/` 是对话页主要实现
+- `frontend/src/presets/agent-presets.ts` 定义随客户端发布的 Agent 模板与所需 Skill
 - `frontend/src/views/SkillManage.vue` 是当前技能库优化后的主界面
 - `nestjs/prisma/schema.prisma` 是数据结构的权威来源
 - `nestjs/src/main.ts` 负责数据库启动时兼容初始化和索引创建
@@ -402,8 +464,9 @@ D:\AIAgentPlatform\
 - 如果修改 Skill 查询逻辑，`/skills/page` 和 `/skills` 要一起考虑
 - Chat 请求需要已登录用户，后端会从 JWT 中读取当前用户
 - Agent 发起对话前必须绑定完整可用的 Model 配置
-- 使用 `web_search` 前要配置 `TAVILY_API_KEY`
-- 工具 Skill 需要先导入并绑定到 Agent，模型才会收到对应 function tool
+- 使用 `web_search` 前要在系统设置中配置博查、Tavily 或 SearXNG
+- “热点雷达”不会绕过工具权限；创建时只是导入并绑定现有工具 Skill
+- 工具 Skill 需要先导入；长期绑定到 Agent，或经用户确认后临时启用，模型才会收到对应 function tool
 - 取消 Agent 的工具 Skill 后，模型不会再收到对应 function tool；实时信息类问题应提示未启用工具，而不是猜测
 - `http_request` 适合读取公开 JSON API；需要登录、Cookie、私有 Header 或写操作的接口不在当前开放范围内
 - 启动桌面应用前，要先保证 `nestjs/dist/main.js` 已经生成
@@ -415,6 +478,7 @@ D:\AIAgentPlatform\
 
 - Chat 可以继续增加会话列表、重命名、删除和搜索
 - 对话回复可以升级为流式输出
+- 需求匹配可以增加可解释的同义词配置、会话级授权和匹配效果反馈
 - Agent 绑定技能的选择器可以做成远程搜索或虚拟列表
 - Skill 继续增加时，可以在前端增加更强的虚拟滚动
 - 认证可以继续扩展成更完整的多用户体系

@@ -1,372 +1,61 @@
 <template>
   <aside class="chat-sidebar">
-    <div class="sidebar-header">
-      <div class="sidebar-heading">
-        <h2 class="sidebar-title">智能体</h2>
+    <header class="sidebar-header">
+      <div>
+        <h2>你的 Agent</h2>
+        <p>选择一个目标开始工作</p>
       </div>
       <span class="agent-count">{{ props.agents.length }}</span>
-    </div>
+    </header>
 
     <div class="sidebar-body" v-loading="props.loading">
-      <template v-if="props.agents.length > 0">
-        <button
-          v-for="agent in props.agents"
-          :key="agent.id"
-          type="button"
-          class="agent-item"
-          :class="{ active: agent.id === props.activeAgentId }"
-          @click="emit('select', agent.id)"
-        >
-          <div class="avatar-wrap">
-            <div class="agent-avatar" :style="{ background: getAvatarColor(agent.id) }">
-              {{ getAvatarChar(agent.name) }}
-            </div>
-            <div class="status-dot" :class="{ online: agent.model?.name }"></div>
-          </div>
-
-          <div class="agent-content">
-            <div class="agent-topline">
-              <h3 class="agent-name">{{ agent.name }}</h3>
-              <span v-if="agent.id === props.activeAgentId" class="active-label">
-                <i></i> 当前
-              </span>
-            </div>
-
-            <p class="agent-desc">
-              {{ agent.description || '暂无描述' }}
-            </p>
-
-            <div class="agent-meta">
-              <span class="meta-item">
-                {{ getModelLabel(agent) }}
-              </span>
-              <span class="meta-separator">·</span>
-              <span class="meta-item">
-                {{ getSkillCount(agent) }} 个技能
-              </span>
-            </div>
-          </div>
+      <template v-if="props.agents.length">
+        <button v-for="agent in props.agents" :key="agent.id" type="button" class="agent-item" :class="{ active: agent.id === props.activeAgentId }" @click="emit('select', agent.id)">
+          <span class="agent-avatar" :style="{ background: getAvatarColor(agent.id) }">{{ getAvatarChar(agent.name) }}</span>
+          <span class="agent-content">
+            <span class="agent-topline"><strong>{{ agent.name }}</strong><span v-if="agent.id === props.activeAgentId" class="active-label">当前</span></span>
+            <span class="agent-desc">{{ agent.description || '暂无描述' }}</span>
+            <span class="agent-meta">{{ getCapabilityCount(agent) }} 项能力<span aria-hidden="true">·</span>{{ getModelStatus(agent) }}</span>
+          </span>
         </button>
       </template>
-
-      <el-empty
-        v-else-if="!props.loading"
-        description="未找到智能体"
-        :image-size="96"
-      />
+      <el-empty v-else-if="!props.loading" description="还没有 Agent" :image-size="84" />
     </div>
 
-    <div class="sidebar-footer">
-      <span>选择智能体开始协作</span>
-    </div>
+    <footer class="sidebar-footer">Agent 的能力来自已绑定的本地配置</footer>
   </aside>
 </template>
 
 <script setup lang="ts">
-const COLORS = [
-  '#667eea', '#f56c6c', '#e6a23c', '#67c23a',
-  '#409eff', '#9b59b6', '#1abc9c', '#e74c3c',
-  '#3498db', '#2ecc71', '#f39c12', '#8e44ad',
-]
-
-const props = defineProps<{
-  agents: any[]
-  activeAgentId: number | null
-  loading?: boolean
-}>()
-
-const emit = defineEmits<{
-  (e: 'select', agentId: number): void
-}>()
-
-function hashId(id: number): number {
-  return ((id * 2654435761) >>> 0) % COLORS.length
-}
-
-function getAvatarColor(id: number): string {
-  return COLORS[hashId(id)]
-}
-
-function getAvatarChar(name: string): string {
-  if (!name) return '?'
-  return name.charAt(name.length - 1)
-}
-
-function getModelLabel(agent: any): string {
-  const modelName = agent?.model?.name || agent?.model?.modelName
-  return modelName ? `模型：${modelName}` : '未绑定模型'
-}
-
-function getSkillCount(agent: any): number {
-  return Array.isArray(agent?.skills) ? agent.skills.length : 0
-}
+const props = defineProps<{ agents: any[]; activeAgentId: number | null; loading?: boolean }>()
+const emit = defineEmits<{ (event: 'select', agentId: number): void }>()
+const COLORS = ['#5f6f8f', '#7c6bb2', '#387d79', '#a76a4f', '#4c7898', '#756b55']
+function getAvatarColor(id: number): string { return COLORS[Math.abs(Number(id) || 0) % COLORS.length] }
+function getAvatarChar(name: string): string { const value = name?.trim() || ''; return value.charAt(value.length - 1) || '?' }
+function getCapabilityCount(agent: any): number { return Array.isArray(agent?.skills) ? agent.skills.length : 0 }
+function getModelStatus(agent: any): string { return agent?.model?.name || agent?.model?.modelName ? '已准备' : '待配置' }
 </script>
 
 <style scoped>
-.chat-sidebar {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: hidden;
-  border: 1px solid rgba(224, 226, 235, 0.9);
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(31, 35, 60, 0.05);
-  color: #23283b;
-}
-
-.sidebar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 20px 18px 17px;
-  border-bottom: 1px solid #eff0f4;
-}
-
-.sidebar-heading {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.sidebar-title {
-  margin: 0;
-  color: #23283b;
-  font-size: 17px;
-  font-weight: 680;
-  letter-spacing: -0.2px;
-}
-
-.agent-count {
-  min-width: 30px;
-  height: 30px;
-  padding: 0 9px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #e6e3fb;
-  border-radius: 9px;
-  color: #6f61dc;
-  font-size: 11px;
-  font-weight: 700;
-  background: #f3f1ff;
-}
-
-.sidebar-body {
-  flex: 1;
-  min-height: 0;
-  padding: 10px;
-  overflow-y: auto;
-}
-
-.agent-item {
-  position: relative;
-  width: 100%;
-  display: flex;
-  gap: 11px;
-  padding: 12px;
-  overflow: hidden;
-  border: 1px solid transparent;
-  border-radius: 13px;
-  color: inherit;
-  text-align: left;
-  background: transparent;
-  cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease;
-}
-
-.agent-item + .agent-item {
-  margin-top: 4px;
-}
-
-.agent-item:hover {
-  border-color: #eceaf8;
-  background: #faf9ff;
-}
-
-.agent-item.active {
-  border-color: rgba(120, 103, 238, 0.16);
-  background: #f5f3ff;
-  box-shadow: inset 3px 0 0 #7e70ef;
-}
-
-.agent-item.active::after {
-  position: absolute;
-  width: 70px;
-  height: 70px;
-  right: -46px;
-  top: -42px;
-  border-radius: 50%;
-  content: '';
-  background: rgba(126, 112, 239, 0.09);
-}
-
-.avatar-wrap {
-  position: relative;
-  flex-shrink: 0;
-  width: 46px;
-  height: 46px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 1px;
-}
-
-.agent-avatar {
-  width: 46px;
-  height: 46px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid rgba(255, 255, 255, 0.9);
-  border-radius: 13px;
-  color: #fff;
-  font-size: 16px;
-  font-weight: 700;
-  box-shadow: 0 2px 5px rgba(35, 39, 64, 0.12);
-  letter-spacing: 0;
-}
-
-.status-dot {
-  position: absolute;
-  right: -1px;
-  bottom: -1px;
-  width: 10px;
-  height: 10px;
-  border: 2px solid #fff;
-  border-radius: 50%;
-  background: #c4c7d1;
-  box-shadow: 0 2px 5px rgba(32, 36, 58, 0.12);
-}
-
-.status-dot.online {
-  background: #4fcc98;
-}
-
-.agent-content {
-  min-width: 0;
-  flex: 1;
-  padding-top: 1px;
-}
-
-.agent-topline {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.agent-name {
-  margin: 0;
-  color: #303548;
-  font-size: 12px;
-  font-weight: 680;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.active-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: #7466e6;
-  font-size: 9px;
-  font-weight: 650;
-}
-
-.active-label i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #7466e6;
-  box-shadow: 0 0 0 3px rgba(116, 102, 230, 0.09);
-}
-
-.agent-desc {
-  min-height: 17px;
-  margin-top: 3px;
-  color: #8b90a1;
-  font-size: 10px;
-  line-height: 1.55;
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.agent-meta {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 6px;
-  overflow: hidden;
-  color: #999dad;
-  font-size: 9px;
-  white-space: nowrap;
-}
-
-.meta-item {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.meta-separator {
-  flex-shrink: 0;
-  color: #c1c4cf;
-}
-
-.sidebar-footer {
-  padding: 12px 17px 14px;
-  display: flex;
-  align-items: center;
-  border-top: 1px solid #eff0f4;
-  color: #a1a5b4;
-  font-size: 9px;
-  letter-spacing: 0.2px;
-}
-
-:deep(.sidebar-body .el-loading-mask) {
-  background: rgba(255, 255, 255, 0.7);
-}
-
-:deep(.sidebar-body .el-empty__description p) {
-  color: #999dad;
-  font-size: 11px;
-}
-
-.sidebar-body::-webkit-scrollbar {
-  width: 6px;
-}
-
-.sidebar-body::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.sidebar-body::-webkit-scrollbar-thumb {
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background: rgba(116, 102, 239, 0.3);
-  background-clip: padding-box;
-}
-
-.sidebar-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(116, 102, 239, 0.45);
-  background-clip: padding-box;
-}
-
-@media (max-width: 960px) {
-  .chat-sidebar {
-    min-height: 240px;
-    max-height: 280px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .agent-item {
-    transition: none;
-  }
-}
+.chat-sidebar { display: flex; flex-direction: column; min-height: 0; overflow: hidden; border: 1px solid #e0e4eb; border-radius: 10px; color: #293448; background: #fff; }
+.sidebar-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 16px 15px; border-bottom: 1px solid #edf0f3; }
+.sidebar-header h2 { margin: 0; color: #2c374a; font-size: 16px; font-weight: 700; }
+.sidebar-header p { margin: 4px 0 0; color: #919aa7; font-size: 10px; }
+.agent-count { display: inline-flex; align-items: center; justify-content: center; min-width: 27px; height: 27px; padding: 0 8px; border-radius: 7px; color: #60718a; font-size: 11px; font-weight: 700; background: #edf1f5; }
+.sidebar-body { flex: 1; min-height: 0; padding: 9px; overflow-y: auto; }
+.agent-item { width: 100%; display: flex; align-items: flex-start; gap: 10px; padding: 11px; border: 1px solid transparent; border-radius: 8px; color: inherit; text-align: left; background: transparent; cursor: pointer; }
+.agent-item + .agent-item { margin-top: 3px; }
+.agent-item:hover { border-color: #e3e8ee; background: #fafbfd; }
+.agent-item.active { border-color: #d7e0e8; background: #f2f6f9; box-shadow: inset 3px 0 0 #617991; }
+.agent-avatar { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; flex: 0 0 auto; border-radius: 8px; color: #fff; font-size: 15px; font-weight: 700; }
+.agent-content { min-width: 0; flex: 1; padding-top: 1px; }
+.agent-topline { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.agent-topline strong { overflow: hidden; color: #344054; font-size: 12px; font-weight: 680; text-overflow: ellipsis; white-space: nowrap; }
+.active-label { color: #607991; font-size: 9px; }
+.agent-desc { display: block; margin-top: 4px; overflow: hidden; color: #8d97a4; font-size: 10px; line-height: 1.5; text-overflow: ellipsis; white-space: nowrap; }
+.agent-meta { display: flex; gap: 6px; margin-top: 6px; color: #a0a9b5; font-size: 9px; }
+.sidebar-footer { padding: 11px 15px 13px; border-top: 1px solid #edf0f3; color: #9da6b2; font-size: 9px; }
+.sidebar-body::-webkit-scrollbar { width: 6px; }
+.sidebar-body::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: rgba(95,112,136,.3); background-clip: padding-box; }
+@media (max-width: 960px) { .chat-sidebar { min-height: 220px; max-height: 260px; } }
 </style>

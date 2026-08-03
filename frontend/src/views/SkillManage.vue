@@ -639,7 +639,7 @@ async function handleDelete(id: number) {
 }
 
 .preset-card:hover {
-  border-color: #9e94e8;
+  border-color: #8fb7b1;
   background: #faf9ff;
 }
 

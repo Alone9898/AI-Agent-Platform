@@ -6,9 +6,10 @@ import { ModelModule } from './model/model.module';
 import { AuthModule } from './auth/auth.module';
 import { ChatModule } from './chat/chat.module';
 import { HealthController } from './health/health.controller';
+import { ToolSettingsModule } from './tool-settings/tool-settings.module';
 
 @Module({
-  imports: [AuthModule, AgentModule, SkillModule, ModelModule, ChatModule],
+  imports: [AuthModule, AgentModule, SkillModule, ModelModule, ChatModule, ToolSettingsModule],
   controllers: [HealthController],
   providers: [PrismaService],
   exports: [PrismaService],

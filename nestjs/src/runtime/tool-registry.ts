@@ -48,6 +48,12 @@ export class ToolRegistry {
     return [...registered.values()];
   }
 
+  supportedToolNames(serializedTools: string | null): string[] {
+    return parseTools(serializedTools)
+      .filter((tool) => this.isSupported(tool))
+      .map((tool) => tool.name);
+  }
+
   async execute(tool: RegisteredTool, input: Record<string, unknown>): Promise<unknown> {
     if (this.toolHandlers.has(tool.config.name)) {
       return this.toolHandlers.execute(tool.config.name, input);

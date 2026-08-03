@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { WebSearchProvider } from '../web-search.provider';
-import { WebSearchRequest, WebSearchResponse } from '../web-search.types';
+import { WebSearchProviderConfig, WebSearchRequest, WebSearchResponse } from '../web-search.types';
 
 interface TavilyResult {
   title?: string;
@@ -16,10 +16,13 @@ interface TavilyResponse {
 
 @Injectable()
 export class TavilyProvider implements WebSearchProvider {
-  async search(request: WebSearchRequest): Promise<WebSearchResponse> {
-    const apiKey = process.env.TAVILY_API_KEY?.trim();
+  async search(
+    request: WebSearchRequest,
+    config: WebSearchProviderConfig,
+  ): Promise<WebSearchResponse> {
+    const apiKey = config.apiKey?.trim();
     if (!apiKey) {
-      throw new Error('TAVILY_API_KEY is required for web_search');
+      throw new Error('Tavily API Key 未配置');
     }
 
     const controller = new AbortController();
@@ -47,6 +50,7 @@ export class TavilyProvider implements WebSearchProvider {
 
       const data = (await response.json()) as TavilyResponse;
       return {
+        provider: 'tavily',
         query: data.query || request.query,
         results: (data.results || [])
           .filter((item) => item.title && item.url)

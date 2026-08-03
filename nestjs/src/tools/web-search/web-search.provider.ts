@@ -1,5 +1,12 @@
-import { WebSearchRequest, WebSearchResponse } from './web-search.types';
+import {
+  WebSearchProviderConfig,
+  WebSearchRequest,
+  WebSearchResponse,
+} from './web-search.types';
 
 export interface WebSearchProvider {
-  search(request: WebSearchRequest): Promise<WebSearchResponse>;
+  search(
+    request: WebSearchRequest,
+    config: WebSearchProviderConfig,
+  ): Promise<WebSearchResponse>;
 }

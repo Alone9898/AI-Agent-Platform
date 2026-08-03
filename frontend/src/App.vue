@@ -24,10 +24,15 @@
         router
         class="sidebar-menu"
       >
+        <el-menu-item index="/home">
+          <el-icon><House /></el-icon>
+          <span>首页</span>
+        </el-menu-item>
         <el-menu-item index="/chat">
           <el-icon><ChatDotRound /></el-icon>
-          <span>对话系统</span>
+          <span>对话</span>
         </el-menu-item>
+        <div class="menu-label menu-label-secondary">管理</div>
         <el-menu-item index="/agents">
           <el-icon><User /></el-icon>
           <span>Agent 管理</span>
@@ -131,7 +136,7 @@
 import { computed, ref, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Cpu, User, MagicStick, Setting, Lock, ArrowDown, SwitchButton, ChatDotRound } from '@element-plus/icons-vue'
+import { Cpu, User, MagicStick, Setting, Lock, ArrowDown, SwitchButton, ChatDotRound, House } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores'
 import logoMark from '@/assets/logo-mark.svg'
 
@@ -235,20 +240,20 @@ async function handleChangePassword() {
 
 <style>
 :root {
-  --app-accent: #7466ef;
-  --app-accent-deep: #6352d2;
-  --app-ink: #171b2d;
-  --app-muted: #8b90a3;
-  --app-border: #e6e8ef;
+  --app-accent: #4d857f;
+  --app-accent-deep: #356e69;
+  --app-ink: #17202a;
+  --app-muted: #7f8c96;
+  --app-border: #dfe5e7;
   --app-surface: #ffffff;
-  --app-canvas: #f3f5f9;
-  --el-color-primary: #7466ef;
-  --el-color-primary-light-3: #978cf4;
-  --el-color-primary-light-5: #b9b1f7;
-  --el-color-primary-light-7: #d8d4fb;
-  --el-color-primary-light-8: #e7e4fd;
-  --el-color-primary-light-9: #f2f0fe;
-  --el-color-primary-dark-2: #5d52bf;
+  --app-canvas: #f4f6f5;
+  --el-color-primary: #4d857f;
+  --el-color-primary-light-3: #76a59f;
+  --el-color-primary-light-5: #9cc1bc;
+  --el-color-primary-light-7: #c5dcd9;
+  --el-color-primary-light-8: #dcebe9;
+  --el-color-primary-light-9: #eef5f4;
+  --el-color-primary-dark-2: #356e69;
 }
 
 * {
@@ -282,8 +287,8 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-right: 1px solid #2b3043;
-  background: #1b2033;
+  border-right: 1px solid #243138;
+  background: #17202a;
   box-shadow: 4px 0 16px rgba(29, 33, 56, 0.06);
   transition: width 0.25s ease;
 }
@@ -345,6 +350,10 @@ body {
   letter-spacing: 1.6px;
 }
 
+.menu-label-secondary {
+  margin-top: 22px;
+}
+
 .sidebar-menu {
   position: relative;
   z-index: 1;
@@ -370,11 +379,11 @@ body {
 }
 
 .sidebar-menu .el-menu-item.is-active {
-  border-color: rgba(151, 137, 255, 0.18);
-  background: rgba(116, 102, 239, 0.16) !important;
+  border-color: rgba(100, 182, 172, 0.22);
+  background: rgba(100, 182, 172, 0.14) !important;
   color: #fff !important;
   font-weight: 600;
-  box-shadow: inset 3px 0 0 #8f82fa;
+  box-shadow: inset 3px 0 0 #64b6ac;
 }
 
 .sidebar-menu .el-menu-item .el-icon {
@@ -390,8 +399,8 @@ body {
 }
 
 .sidebar-menu .el-menu-item.is-active .el-icon {
-  color: #b8afff;
-  background: rgba(137, 120, 255, 0.13);
+  color: #a6d5cf;
+  background: rgba(100, 182, 172, 0.13);
 }
 
 /* ========== 底部用户区域 ========== */
@@ -443,7 +452,7 @@ body {
   color: #fff;
   font-size: 14px;
   font-weight: 700;
-  background: #6d60d9;
+  background: #4d857f;
 }
 
 .user-detail {
@@ -500,7 +509,7 @@ body {
 
 .el-table {
   --el-table-border-color: #eceef3;
-  --el-table-row-hover-bg-color: #f7f6ff;
+  --el-table-row-hover-bg-color: #f1f7f6;
   border-radius: 12px;
   overflow: hidden;
 }
@@ -513,7 +522,7 @@ body {
 }
 
 .el-table .el-table__row:hover > td {
-  background-color: #f7f6ff !important;
+  background-color: #f1f7f6 !important;
 }
 
 .el-button {
@@ -522,14 +531,14 @@ body {
 }
 
 .el-button--primary:not(.is-link):not(.is-text) {
-  border-color: #7466ef;
-  background: #7466ef;
+  border-color: #4d857f;
+  background: #4d857f;
   box-shadow: none;
 }
 
 .el-button--primary:not(.is-link):not(.is-text):hover {
-  border-color: #6557d9;
-  background: #6557d9;
+  border-color: #356e69;
+  background: #356e69;
   box-shadow: none;
 }
 
@@ -609,9 +618,9 @@ body {
   align-items: center;
   gap: 16px;
   padding: 17px;
-  border: 1px solid #e9e6fd;
+  border: 1px solid #d9e9e6;
   border-radius: 14px;
-  background: #f7f6fe;
+  background: #f1f7f6;
 }
 
 .profile-avatar {
@@ -626,7 +635,7 @@ body {
   color: #fff;
   font-size: 20px;
   font-weight: 700;
-  background: #6d60d9;
+  background: #4d857f;
 }
 
 .profile-info h3 {

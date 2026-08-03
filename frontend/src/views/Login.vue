@@ -164,7 +164,7 @@ async function handleLogin() {
   try {
     await authStore.login(form.username, form.password)
     ElMessage.success('登录成功')
-    router.push('/agents')
+    router.push('/home')
   } catch (error: any) {
     ElMessage.error(getApiErrorMessage(error))
   } finally {
@@ -175,17 +175,17 @@ async function handleLogin() {
 
 <style scoped>
 .login-page {
-  --brand-bg: #151a2f;
-  --brand-bg-light: #202745;
-  --accent: #7667f5;
-  --accent-light: #9f94ff;
-  --ink: #171b2d;
+  --brand-bg: #17202a;
+  --brand-bg-light: #25333a;
+  --accent: #4d857f;
+  --accent-light: #9cc1bc;
+  --ink: #17202a;
   width: 100%;
   min-height: 100vh;
   display: grid;
   grid-template-columns: minmax(520px, 1.15fr) minmax(420px, 0.85fr);
   overflow: hidden;
-  background: #f6f7fb;
+  background: #f4f6f5;
 }
 
 .brand-panel {
@@ -196,7 +196,7 @@ async function handleLogin() {
   flex-direction: column;
   overflow: hidden;
   color: #fff;
-  background: #1c2134;
+  background: var(--brand-bg);
 }
 
 .brand-header,
@@ -290,13 +290,13 @@ async function handleLogin() {
   gap: 11px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
-  background: #242a3d;
+  background: #25333a;
   transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .capability-card:hover {
-  border-color: rgba(159, 148, 255, 0.28);
-  background: #292f44;
+  border-color: rgba(156, 193, 188, 0.32);
+  background: #2b3d43;
 }
 
 .capability-icon {
@@ -311,13 +311,13 @@ async function handleLogin() {
 }
 
 .agent-icon {
-  color: #a99eff;
-  background: rgba(137, 119, 255, 0.14);
+  color: #b2d6d0;
+  background: rgba(100, 182, 172, 0.14);
 }
 
 .skill-icon {
   color: #72e3d5;
-  background: rgba(73, 203, 190, 0.12);
+  background: rgba(100, 182, 172, 0.12);
 }
 
 .model-icon {
@@ -359,7 +359,7 @@ async function handleLogin() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #f7f8fc;
+  background: #f4f6f5;
 }
 
 .login-shell {
@@ -439,7 +439,7 @@ async function handleLogin() {
 }
 
 .login-form :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1.5px var(--accent) inset, 0 0 0 4px rgba(118, 103, 245, 0.08);
+  box-shadow: 0 0 0 1.5px var(--accent) inset, 0 0 0 4px rgba(77, 133, 127, 0.12);
 }
 
 .login-form :deep(.el-input__inner) {
@@ -476,14 +476,14 @@ async function handleLogin() {
   font-size: 14px;
   font-weight: 650;
   letter-spacing: 0.3px;
-  background: #7466ef;
+  background: var(--accent);
   border: none;
   box-shadow: none;
   transition: background 0.2s ease;
 }
 
 .login-btn:hover {
-  background: #6557d9;
+  background: #356e69;
 }
 
 .account-tip {
@@ -505,9 +505,9 @@ async function handleLogin() {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #7566e8;
+  color: #4d857f;
   font-size: 14px;
-  background: #efedff;
+  background: #e7f1ef;
 }
 
 .account-tip > div:last-child {
@@ -578,7 +578,7 @@ async function handleLogin() {
 @media (max-width: 860px) {
   .login-page {
     display: block;
-    background: #f7f8fc;
+    background: #f4f6f5;
   }
 
   .brand-panel {
