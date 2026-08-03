@@ -2,7 +2,7 @@
 
 ## 1. 项目概览
 
-星曜 Agent Platform 是一个基于 `Tauri 2 + Vue 3 + NestJS + Prisma + SQLite` 的桌面端 AI Agent 管理平台。项目目标是把 Agent、Skill、Model、聊天运行时、登录态和桌面壳能力统一到一个本地桌面应用里，让用户可以配置、管理并直接使用自己的 AI Agent。
+星曜 Agent Platform 是一个由 `Tauri 2 + Vue 3 + NestJS + Prisma + SQLite` 桌面端和 `Go + Gin + PostgreSQL + Redis` 云端服务组成的 AI Agent 平台。桌面端负责 Agent、Skill、Model、聊天运行时和本地工具执行；云端服务负责用户体系、积分、订单、Skill 市场、设备与版本分发。
 
 当前项目的重点能力：
 
@@ -14,6 +14,7 @@
 - 真实工具层：支持时间、计算器、联网搜索、公开网页读取和通用 HTTP GET 请求
 - 认证与个人信息：后端 JWT 登录，默认管理员会自动初始化
 - 桌面能力：系统托盘、单实例、关闭隐藏到托盘、Sidecar 启动后端服务
+- 云端服务：已建立 Gin 模块化单体骨架，提供注册、登录、当前用户、健康检查和 PostgreSQL 初始迁移
 - 视觉风格：前端已从模板化后台风格调整为更克制、实用、偏桌面产品的界面
 
 ---
@@ -37,6 +38,9 @@
 | 桌面壳 | Tauri 2 | Windows 桌面应用 |
 | 桌面端语言 | Rust | Tauri 主进程、Sidecar 和托盘逻辑 |
 | 后端语言 | TypeScript | 前后端统一 TS 开发体验 |
+| 云端 API | Go + Gin | 远程用户、积分、订单和 Skill 市场业务 |
+| 云端数据库 | PostgreSQL | 用户、账务、订单、Skill 元数据等业务事实来源 |
+| 云端缓存 | Redis | 缓存、限流、短期状态和分布式协调 |
 
 ---
 
@@ -350,6 +354,16 @@ D:\AIAgentPlatform\
 │  │  ├─ skill/                      Skill 模块
 │  │  └─ tools/                      真实工具 handler
 │  └─ prisma/schema.prisma
+├─ gin-server/                       云端 API（Go + Gin）
+│  ├─ cmd/                           API 与数据库迁移入口
+│  ├─ internal/
+│  │  ├─ app/                        依赖装配与优雅停机
+│  │  ├─ modules/                    identity、health 等业务模块
+│  │  ├─ platform/                   PostgreSQL、Redis、JWT、密码能力
+│  │  └─ transport/http/             总路由与全局中间件
+│  ├─ migrations/                    PostgreSQL 版本化迁移
+│  ├─ compose.yaml                   本地完整云端环境
+│  └─ README.md                      云端架构和扩展规范
 ├─ src-tauri/                        Tauri 桌面壳
 │  ├─ src/
 │  │  ├─ lib.rs
@@ -405,3 +419,56 @@ D:\AIAgentPlatform\
 - Skill 继续增加时，可以在前端增加更强的虚拟滚动
 - 认证可以继续扩展成更完整的多用户体系
 - API Key 可以进一步做加密存储
+
+---
+
+## 13. 云端 Gin 服务
+
+`gin-server/` 是独立部署的远程业务服务，不替代桌面端 NestJS。两者职责如下：
+
+| 服务 | 职责 | 数据 |
+|------|------|------|
+| 本地 NestJS | Agent Runtime、模型调用、本地 Skill 与工具执行 | SQLite、本地文件 |
+| 云端 Gin | 注册登录、积分、订单、Skill 市场、设备、安装包分发 | PostgreSQL、Redis、对象存储 |
+
+云端采用模块化单体结构。当前实现的 `identity` 模块按 `domain / application / infrastructure / delivery` 分层，后续的 `wallet / order / payment / skill / device / release / audit` 沿用同一边界。模块成熟后可以拆分为独立服务，但当前阶段不承担微服务的部署和运维成本。
+
+### 13.1 当前接口
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/health/live` | 进程存活检查 |
+| GET | `/health/ready` | PostgreSQL、Redis 就绪检查 |
+| POST | `/api/v1/auth/register` | 邮箱注册并自动创建积分账户 |
+| POST | `/api/v1/auth/login` | 邮箱密码登录并签发 Access Token |
+| GET | `/api/v1/users/me` | 获取当前云端用户 |
+
+### 13.2 初始数据模型
+
+- 用户与认证：`users`、`user_auth_identities`、`refresh_tokens`
+- 积分账务：`wallet_accounts`、`wallet_transactions`
+- 订单支付：`orders`、`payment_transactions`
+- Skill 市场：`skills`、`skill_versions`、`skill_entitlements`、`skill_permissions`、`skill_downloads`、`skill_installs`
+- 客户端分发：`devices`、`app_releases`
+- 平台基础：`idempotency_records`、`audit_logs`、`outbox_events`
+
+积分以整数保存，不使用浮点数。每次余额变化必须同时写入不可变流水；订单、支付回调和积分操作必须使用幂等键。Skill 安装包后续存入对象存储，数据库只保存对象 key、SHA-256、大小、版本和权限声明。云端只负责审核及分发 Skill，不直接执行用户上传的脚本。
+
+### 13.3 启动方式
+
+完整 Docker 环境：
+
+```bash
+cd gin-server
+docker compose up -d --build
+```
+
+本机 Go 开发：
+
+```bash
+cd gin-server
+go run ./cmd/migrate -direction up
+go run ./cmd/api
+```
+
+环境变量模板位于 `gin-server/.env.example`。生产环境必须替换 JWT、数据库与 Redis 凭据，并通过部署平台的 Secret 管理注入。详细边界和模块扩展步骤见 `gin-server/README.md`。

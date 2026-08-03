@@ -2,14 +2,15 @@
 
 <div align="center">
 
-A desktop AI agent management platform built with `Tauri 2 + Vue 3 + NestJS + Prisma + SQLite`.
+A desktop AI agent platform with a local runtime and an extensible Gin cloud service.
 
-基于 `Tauri 2 + Vue 3 + NestJS + Prisma + SQLite` 的桌面端 AI 智能体管理平台。
+由 `Tauri 2 + Vue 3 + NestJS + SQLite` 桌面端和 `Go + Gin + PostgreSQL + Redis` 云端服务组成的 AI 智能体平台。
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Tauri](https://img.shields.io/badge/Tauri-2.x-FFC131?logo=tauri)](https://tauri.app)
 [![Vue](https://img.shields.io/badge/Vue-3.5-4FC08D?logo=vue.js)](https://vuejs.org)
 [![NestJS](https://img.shields.io/badge/NestJS-10.x-E0234E?logo=nestjs)](https://nestjs.com)
+[![Go](https://img.shields.io/badge/Go-1.23-00ADD8?logo=go)](https://go.dev)
 
 </div>
 
@@ -19,7 +20,7 @@ A desktop AI agent management platform built with `Tauri 2 + Vue 3 + NestJS + Pr
 
 Xingyao Agent Platform is a desktop tool for managing AI agents, skills, and models in one place. It is designed for users who want a local, structured, and extensible workspace for building agent workflows.
 
-星曜 Agent Platform 是一个把 Agent、Skill、Model 和认证能力统一起来的桌面端管理工具，适合用于本地化、结构化、可扩展的 AI 工作流编排。
+星曜 Agent Platform 把 Agent、Skill、Model 和本地工具运行时统一在桌面应用中，并通过独立的 Gin 云端服务承载账号、积分、订单、Skill 市场和软件分发。
 
 Key ideas / 核心理念:
 
@@ -30,6 +31,7 @@ Key ideas / 核心理念:
 - 将每个 Agent 视作“团队成员”，为它绑定独立模型和技能
 - 让技能可复用、可搜索、可分页，即使技能库增长到几千条也能稳定管理
 - 用 Tauri Sidecar 承载后端服务，保持桌面应用轻量化
+- 本地 NestJS 只负责 Agent Runtime，远程 Gin 服务负责平台业务，避免执行权限和云端账户耦合
 
 ---
 
@@ -57,6 +59,10 @@ Key ideas / 核心理念:
   - Single instance
   - Close-to-tray behavior
   - Backend starts automatically through Tauri Sidecar
+
+- Cloud service / 云端服务
+  - Gin modular monolith with PostgreSQL and Redis
+  - Registration, login, points ledger, orders, Skill versions, permissions, devices, releases, audit and outbox foundations
 
 ---
 
@@ -193,6 +199,11 @@ D:\AIAgentPlatform\
 │  │  ├─ model/              Model module / Model 模块
 │  │  └─ prisma/             Prisma service / Prisma 服务
 │  └─ prisma/schema.prisma
+├─ gin-server/               Cloud API / 云端 API
+│  ├─ cmd/                   API and migration entries / API 与迁移入口
+│  ├─ internal/              Domain modules and infrastructure / 领域模块与基础设施
+│  ├─ migrations/            PostgreSQL migrations / 数据库迁移
+│  └─ compose.yaml           Local cloud stack / 本地云端环境
 ├─ src-tauri/                Tauri shell / Tauri 壳
 │  ├─ src/
 │  │  ├─ lib.rs
@@ -218,6 +229,11 @@ Detailed technical notes are in [PROJECT.md](./PROJECT.md), including:
 - Tauri sidecar flow / Tauri Sidecar 流程
 - Skill pagination details / 技能库分页细节
 - Development notes / 开发注意事项
+- Gin cloud architecture and database foundation / Gin 云端架构与数据库基础
+
+Cloud service setup and extension rules are documented in [gin-server/README.md](./gin-server/README.md).
+
+云端服务的启动方式与模块扩展规范见 [gin-server/README.md](./gin-server/README.md)。
 
 ---
 
