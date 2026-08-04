@@ -2,7 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { ToolSettingsService } from '../../tool-settings/tool-settings.service';
 import { ToolHandler, ToolHandlerDefinition } from '../tool-handler.types';
 import { BochaProvider } from './providers/bocha.provider';
+import { BingProvider } from './providers/bing.provider';
+import { DuckDuckGoProvider } from './providers/duckduckgo.provider';
+import { ExaMcpProvider } from './providers/exa-mcp.provider';
 import { SearxngProvider } from './providers/searxng.provider';
+import { SerpApiProvider } from './providers/serpapi.provider';
 import { TavilyProvider } from './providers/tavily.provider';
 
 @Injectable()
@@ -29,8 +33,12 @@ export class WebSearchHandler implements ToolHandler {
   constructor(
     private readonly toolSettings: ToolSettingsService,
     private readonly bochaProvider: BochaProvider,
+    private readonly bingProvider: BingProvider,
+    private readonly duckDuckGoProvider: DuckDuckGoProvider,
+    private readonly exaMcpProvider: ExaMcpProvider,
     private readonly tavilyProvider: TavilyProvider,
     private readonly searxngProvider: SearxngProvider,
+    private readonly serpApiProvider: SerpApiProvider,
   ) {}
 
   async execute(input: Record<string, unknown>) {
@@ -47,8 +55,12 @@ export class WebSearchHandler implements ToolHandler {
     const config = await this.toolSettings.getWebSearchRuntimeConfig();
     const provider = {
       bocha: this.bochaProvider,
+      bing: this.bingProvider,
+      duckduckgo: this.duckDuckGoProvider,
+      exa_mcp: this.exaMcpProvider,
       tavily: this.tavilyProvider,
       searxng: this.searxngProvider,
+      serpapi: this.serpApiProvider,
     }[config.provider];
     return provider.search({ query, maxResults }, config);
   }

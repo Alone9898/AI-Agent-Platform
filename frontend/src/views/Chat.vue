@@ -8,28 +8,51 @@
       <ChatSidebar
         :agents="agents"
         :active-agent-id="selectedAgentId"
+        :conversations="conversationItems"
+        :active-conversation-id="activeConversationId"
         :loading="agentsLoading"
-        @select="selectAgent"
+        :conversations-loading="conversationListLoading"
+        @select-agent="selectAgent"
+        @new-conversation="requestNewConversation"
+        @select-conversation="openConversation"
+        @rename="renameConversation"
+        @remove="removeConversation"
+        @search="searchConversations"
       />
 
-      <section class="chat-stage">
+      <section
+        class="chat-stage"
+        :class="{ 'is-file-dragging': stageDragActive }"
+        @dragenter.prevent="handleStageDragEnter"
+        @dragover.prevent="handleStageDragOver"
+        @dragleave.prevent="handleStageDragLeave"
+        @drop.prevent="handleStageDrop"
+      >
         <ChatWindow
           :agent="activeAgent"
           :messages="activeMessages"
           :starter-prompts="activeStarterPrompts"
-          :loading="agentsLoading"
+          :loading="agentsLoading || conversationLoading"
           :sending="sending"
           :activity-label="activityLabel"
           @starter="useStarterPrompt"
         />
 
         <ChatInput
+          ref="chatInputRef"
           v-model="activeDraft"
+          v-model:attachments="pendingAttachments"
           :disabled="!activeAgent"
           :sending="sending"
           :placeholder="activeAgent ? `和 ${activeAgent.name} 说点什么` : '请先选择一个 Agent'"
           @send="handleSend"
         />
+
+        <div v-if="stageDragActive" class="stage-drop-hint" aria-hidden="true">
+          <el-icon><UploadFilled /></el-icon>
+          <strong>拖到这里交给当前 Agent</strong>
+          <span>文件会在本机解析后随本次消息发送</span>
+        </div>
       </section>
     </div>
 
@@ -97,13 +120,14 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { Connection, Lock, WarningFilled } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Connection, Lock, UploadFilled, WarningFilled } from '@element-plus/icons-vue'
 import ChatSidebar from '@/components/chat/ChatSidebar.vue'
 import ChatWindow from '@/components/chat/ChatWindow.vue'
 import ChatInput from '@/components/chat/ChatInput.vue'
 import { agentApi, chatApi, toolSettingsApi } from '@/api'
-import { agentPresetStorageKey, HOTSPOT_RADAR_PRESET } from '@/presets/agent-presets'
+import { findLocalAgentPreset } from '@/presets/agent-presets'
+import type { ChatAttachment, ChatAttachmentMetadata } from '@/types/chat-attachment'
 
 interface RuntimeStep {
   type: 'memory' | 'capability' | 'llm' | 'tool'
@@ -143,28 +167,45 @@ interface ChatMessage {
   content: string
   createdAt: number
   steps?: RuntimeStep[]
+  attachments?: ChatAttachmentMetadata[]
+}
+
+interface ConversationSummary {
+  id: string
+  title: string
+  agentId: number
+  preview: string
+  messageCount: number
+  createdAt: string
+  updatedAt: string
+  agent: { id: number; name: string; description?: string | null }
 }
 
 const route = useRoute()
 const router = useRouter()
 const agents = ref<any[]>([])
 const agentsLoading = ref(false)
+const conversationLoading = ref(false)
+const conversationListLoading = ref(false)
 const selectedAgentId = ref<number | null>(null)
+const activeConversationId = ref<string | null>(null)
+const activeMessages = ref<ChatMessage[]>([])
+const conversationItems = ref<ConversationSummary[]>([])
+const conversationKeyword = ref('')
 const sending = ref(false)
 const activity = ref<'idle' | 'matching' | 'awaiting-consent' | 'enabling' | 'generating'>('idle')
 const loadError = ref('')
 const consentDialogVisible = ref(false)
 const pendingConsent = ref<PendingConsent | null>(null)
-const conversations = reactive<Record<number, ChatMessage[]>>({})
+const pendingAttachments = ref<ChatAttachment[]>([])
+const chatInputRef = ref<InstanceType<typeof ChatInput> | null>(null)
+const stageDragActive = ref(false)
 const drafts = reactive<Record<number, string>>({})
 
 const ACTIVE_AGENT_KEY = 'chat:active-agent-id'
-const conversationKey = (agentId: number) => `chat:messages:${agentId}`
-const conversationIdKey = (agentId: number) => `chat:conversation-id:${agentId}`
 const draftKey = (agentId: number) => `chat:draft:${agentId}`
 
 const activeAgent = computed(() => agents.value.find((agent) => agent.id === selectedAgentId.value) || null)
-const activeMessages = computed(() => selectedAgentId.value ? conversations[selectedAgentId.value] || [] : [])
 const activityLabel = computed(() => {
   if (activity.value === 'matching') return '正在理解需求并匹配能力...'
   if (activity.value === 'awaiting-consent') return '等待确认要启用的能力...'
@@ -177,10 +218,7 @@ const hasHighRiskMatch = computed(() =>
 const needsWebSearchSetup = computed(() => pendingConsent.value?.needsWebSearchSetup || false)
 const activeStarterPrompts = computed(() => {
   if (!activeAgent.value || activeMessages.value.length > 0) return []
-  const storedId = Number(localStorage.getItem(agentPresetStorageKey(HOTSPOT_RADAR_PRESET.key)))
-  const isHotspot = activeAgent.value.name === HOTSPOT_RADAR_PRESET.name
-    || (Number.isFinite(storedId) && activeAgent.value.id === storedId)
-  return isHotspot ? HOTSPOT_RADAR_PRESET.starterPrompts : []
+  return findLocalAgentPreset(activeAgent.value)?.starterPrompts || []
 })
 
 const activeDraft = computed({
@@ -197,7 +235,6 @@ onMounted(loadAgents)
 watch(selectedAgentId, (agentId) => {
   if (agentId === null) return
   localStorage.setItem(ACTIVE_AGENT_KEY, String(agentId))
-  ensureConversationLoaded(agentId)
   ensureDraftLoaded(agentId)
 })
 
@@ -208,28 +245,49 @@ async function loadAgents() {
     const { data } = await agentApi.findAll()
     agents.value = Array.isArray(data) ? data : []
     syncSelectedAgent()
+    try {
+      await loadConversationList()
+    } catch {
+      ElMessage.warning('历史对话暂时无法加载，仍可开始新对话')
+    }
+    if (typeof route.query.send === 'string') await consumeRoutedDemand()
+    else await restoreInitialConversation()
   } catch (error: any) {
     loadError.value = '加载 Agent 列表失败，请稍后重试。'
     ElMessage.error(error?.response?.data?.message || loadError.value)
   } finally {
     agentsLoading.value = false
   }
-  await consumeRoutedDemand()
 }
 
 async function consumeRoutedDemand() {
   if (typeof route.query.send !== 'string' || !selectedAgentId.value) return
   const agentId = selectedAgentId.value
   const configureTaskAgent = route.query.configure === '1'
-  ensureConversationLoaded(agentId)
   ensureDraftLoaded(agentId)
   const prompt = (drafts[agentId] || '').trim()
 
   drafts[agentId] = ''
   localStorage.removeItem(draftKey(agentId))
+  await startNewConversation(agentId, false)
   await router.replace({ path: '/chat', query: { agentId: String(agentId) } })
 
   if (prompt) await handleSend(prompt, { configureTaskAgent })
+}
+
+async function restoreInitialConversation() {
+  const routeConversationId = typeof route.query.conversationId === 'string'
+    ? route.query.conversationId
+    : ''
+  if (routeConversationId) {
+    await openConversation(routeConversationId, false)
+    return
+  }
+  const latest = conversationItems.value.find(
+    (conversation) => conversation.agentId === selectedAgentId.value,
+  )
+  if (latest) await openConversation(latest.id, false)
+  else await startNewConversation(selectedAgentId.value, false)
 }
 
 function syncSelectedAgent() {
@@ -248,33 +306,173 @@ function syncSelectedAgent() {
     : agents.value[0].id
 }
 
-function selectAgent(agentId: number) { selectedAgentId.value = agentId }
-function useStarterPrompt(prompt: string) { activeDraft.value = prompt }
+async function selectAgent(agentId: number) {
+  if (sending.value || agentId === selectedAgentId.value) return
+  pendingAttachments.value = []
+  selectedAgentId.value = agentId
+  const latest = conversationItems.value.find((conversation) => conversation.agentId === agentId)
+  if (latest) await openConversation(latest.id)
+  else await startNewConversation(agentId)
+}
 
-function ensureConversationLoaded(agentId: number) {
-  if (!conversations[agentId]) conversations[agentId] = loadConversation(agentId)
+function useStarterPrompt(prompt: string) { activeDraft.value = prompt }
+function requestNewConversation() {
+  if (!sending.value) void startNewConversation()
+}
+
+async function loadConversationList() {
+  conversationListLoading.value = true
+  try {
+    const { data } = await chatApi.findConversations({
+      limit: 100,
+      ...(conversationKeyword.value ? { keyword: conversationKeyword.value } : {}),
+    })
+    conversationItems.value = Array.isArray(data) ? data : []
+  } finally {
+    conversationListLoading.value = false
+  }
+}
+
+async function searchConversations(keyword: string) {
+  conversationKeyword.value = keyword
+  try {
+    await loadConversationList()
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message || '搜索对话失败')
+  }
+}
+
+async function openConversation(conversationId: string, updateRoute = true) {
+  if (!conversationId || sending.value) return
+  pendingAttachments.value = []
+  conversationLoading.value = true
+  try {
+    const { data } = await chatApi.findConversation(conversationId)
+    selectedAgentId.value = Number(data.agentId)
+    activeConversationId.value = data.id
+    activeMessages.value = Array.isArray(data.messages)
+      ? data.messages.map(mapStoredMessage).filter((message: ChatMessage | null): message is ChatMessage => Boolean(message))
+      : []
+    if (updateRoute) await syncChatRoute()
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message || '加载对话失败')
+    await startNewConversation(selectedAgentId.value, updateRoute)
+  } finally {
+    conversationLoading.value = false
+  }
+}
+
+async function startNewConversation(agentId = selectedAgentId.value, updateRoute = true) {
+  if (!agentId) return
+  pendingAttachments.value = []
+  selectedAgentId.value = agentId
+  activeConversationId.value = null
+  activeMessages.value = []
+  if (updateRoute) await syncChatRoute()
+}
+
+async function syncChatRoute() {
+  if (!selectedAgentId.value) return
+  await router.replace({
+    path: '/chat',
+    query: {
+      agentId: String(selectedAgentId.value),
+      ...(activeConversationId.value ? { conversationId: activeConversationId.value } : {}),
+    },
+  })
+}
+
+async function renameConversation(conversation: Pick<ConversationSummary, 'id' | 'title'>) {
+  try {
+    const { value } = await ElMessageBox.prompt('输入新的会话名称', '重命名会话', {
+      inputValue: conversation.title,
+      inputPlaceholder: '会话名称',
+      inputValidator: (input) => {
+        const title = input.trim()
+        if (!title) return '会话名称不能为空'
+        if (title.length > 80) return '会话名称不能超过 80 个字符'
+        return true
+      },
+      confirmButtonText: '保存',
+      cancelButtonText: '取消',
+    })
+    await chatApi.renameConversation(conversation.id, value.trim())
+    await loadConversationList()
+    ElMessage.success('会话已重命名')
+  } catch (error: any) {
+    if (error === 'cancel' || error === 'close') return
+    ElMessage.error(error?.response?.data?.message || '重命名失败')
+  }
+}
+
+async function removeConversation(conversation: Pick<ConversationSummary, 'id' | 'title' | 'agentId'>) {
+  try {
+    await ElMessageBox.confirm(`删除“${conversation.title}”？该操作无法撤销。`, '删除会话', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
+    await chatApi.removeConversation(conversation.id)
+    if (activeConversationId.value === conversation.id) {
+      await startNewConversation(conversation.agentId)
+    }
+    await loadConversationList()
+    ElMessage.success('会话已删除')
+  } catch (error: any) {
+    if (error === 'cancel' || error === 'close') return
+    ElMessage.error(error?.response?.data?.message || '删除失败')
+  }
 }
 
 function ensureDraftLoaded(agentId: number) {
   if (!(agentId in drafts)) drafts[agentId] = loadDraft(agentId)
 }
 
-function loadConversation(agentId: number): ChatMessage[] {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(conversationKey(agentId)) || '[]')
-    return Array.isArray(parsed) ? parsed.filter(isValidMessage) : []
-  } catch { return [] }
-}
-
 function loadDraft(agentId: number): string { return localStorage.getItem(draftKey(agentId)) || '' }
-function persistConversation(agentId: number) { localStorage.setItem(conversationKey(agentId), JSON.stringify(conversations[agentId] || [])) }
-function isValidMessage(value: any): value is ChatMessage {
-  return value && typeof value === 'object' && (value.role === 'user' || value.role === 'assistant')
-    && typeof value.content === 'string' && typeof value.id === 'string'
+
+function mapStoredMessage(value: any): ChatMessage | null {
+  if (!value || (value.role !== 'user' && value.role !== 'assistant') || typeof value.content !== 'string') {
+    return null
+  }
+  const timestamp = new Date(value.createdAt).getTime()
+  return {
+    id: String(value.id),
+    role: value.role,
+    content: value.content,
+    createdAt: Number.isFinite(timestamp) ? timestamp : Date.now(),
+    ...(Array.isArray(value.steps) && value.steps.length ? { steps: value.steps } : {}),
+    ...(Array.isArray(value.attachments) && value.attachments.length
+      ? { attachments: value.attachments.map(mapAttachmentMetadata).filter(Boolean) as ChatAttachmentMetadata[] }
+      : {}),
+  }
 }
 
-function createMessage(role: 'user' | 'assistant', content: string, steps: RuntimeStep[] = []): ChatMessage {
-  return { id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`, role, content, createdAt: Date.now(), ...(steps.length ? { steps } : {}) }
+function createMessage(
+  role: 'user' | 'assistant',
+  content: string,
+  steps: RuntimeStep[] = [],
+  attachments: ChatAttachmentMetadata[] = [],
+): ChatMessage {
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    role,
+    content,
+    createdAt: Date.now(),
+    ...(steps.length ? { steps } : {}),
+    ...(attachments.length ? { attachments } : {}),
+  }
+}
+
+function mapAttachmentMetadata(value: any): ChatAttachmentMetadata | null {
+  if (!value || typeof value.name !== 'string' || typeof value.mimeType !== 'string') return null
+  if (!Number.isFinite(value.size) || !Number.isFinite(value.characterCount)) return null
+  return {
+    name: value.name,
+    mimeType: value.mimeType,
+    size: value.size,
+    characterCount: value.characterCount,
+    truncated: value.truncated === true,
+  }
 }
 
 function buildConversationPayload(messages: ChatMessage[]) {
@@ -314,7 +512,10 @@ function extractChatResult(data: any): { final: string; steps: RuntimeStep[]; co
 async function handleSend(text: string, options: { configureTaskAgent?: boolean } = {}) {
   if (!activeAgent.value || sending.value) return
   const baseAgent = activeAgent.value
+  const attachments = pendingAttachments.value.map((attachment) => ({ ...attachment }))
+  const attachmentMetadata: ChatAttachmentMetadata[] = attachments.map(({ id: _id, content: _content, ...metadata }) => metadata)
   let targetAgent = baseAgent
+  let optimisticMessage: ChatMessage | null = null
   sending.value = true
   activity.value = 'matching'
   try {
@@ -341,7 +542,7 @@ async function handleSend(text: string, options: { configureTaskAgent?: boolean 
           if (options.configureTaskAgent) {
             activity.value = 'enabling'
             targetAgent = await ensureTaskAgent(baseAgent, matches)
-            selectedAgentId.value = targetAgent.id
+            await startNewConversation(targetAgent.id)
             preserveDraft(targetAgent.id, text)
           } else {
             preserveDraft(baseAgent.id, text)
@@ -357,8 +558,7 @@ async function handleSend(text: string, options: { configureTaskAgent?: boolean 
           activity.value = 'enabling'
           if (options.configureTaskAgent) {
             targetAgent = await ensureTaskAgent(baseAgent, matches)
-            selectedAgentId.value = targetAgent.id
-            await router.replace({ path: '/chat', query: { agentId: String(targetAgent.id) } })
+            await startNewConversation(targetAgent.id)
           } else {
             const { data: consentResult } = await chatApi.confirmSkills({
               requestId: matchResult.requestId,
@@ -377,29 +577,66 @@ async function handleSend(text: string, options: { configureTaskAgent?: boolean 
     }
 
     const agentId = targetAgent.id
-    ensureConversationLoaded(agentId)
-    const history = buildConversationPayload(conversations[agentId])
-    conversations[agentId].push(createMessage('user', text))
-    persistConversation(agentId)
+    const history = buildConversationPayload(activeMessages.value)
+    optimisticMessage = createMessage('user', text, [], attachmentMetadata)
+    activeMessages.value.push(optimisticMessage)
     activity.value = 'generating'
     const { data } = await chatApi.sendMessage({
       agentId,
       message: text,
-      conversationId: localStorage.getItem(conversationIdKey(agentId)) || undefined,
+      conversationId: activeConversationId.value || undefined,
       messages: history,
       temporarySkillIds,
       skillConsentToken,
+      attachments: attachments.map(({ id: _id, ...attachment }) => attachment),
     })
     const result = extractChatResult(data)
-    if (result.conversationId) localStorage.setItem(conversationIdKey(agentId), result.conversationId)
-    conversations[agentId].push(createMessage('assistant', result.final, result.steps))
-    persistConversation(agentId)
+    if (result.conversationId) activeConversationId.value = result.conversationId
+    activeMessages.value.push(createMessage('assistant', result.final, result.steps))
+    pendingAttachments.value = []
+    await syncChatRoute()
+    try {
+      await loadConversationList()
+    } catch {
+      ElMessage.warning('回答已完成，但历史列表刷新失败')
+    }
   } catch (error: any) {
+    if (optimisticMessage) {
+      activeMessages.value = activeMessages.value.filter((message) => message.id !== optimisticMessage?.id)
+    }
+    pendingAttachments.value = attachments
+    activeDraft.value = text
     ElMessage.error(error?.response?.data?.message || error?.message || '发送失败，请稍后重试')
   } finally {
     activity.value = 'idle'
     sending.value = false
   }
+}
+
+function hasDraggedFiles(event: DragEvent): boolean {
+  return Array.from(event.dataTransfer?.types || []).includes('Files')
+}
+
+function handleStageDragEnter(event: DragEvent) {
+  if (activeAgent.value && !sending.value && hasDraggedFiles(event)) stageDragActive.value = true
+}
+
+function handleStageDragOver(event: DragEvent) {
+  if (!activeAgent.value || sending.value || !hasDraggedFiles(event)) return
+  stageDragActive.value = true
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+}
+
+function handleStageDragLeave(event: DragEvent) {
+  const current = event.currentTarget as HTMLElement
+  const related = event.relatedTarget as Node | null
+  if (!related || !current.contains(related)) stageDragActive.value = false
+}
+
+function handleStageDrop(event: DragEvent) {
+  stageDragActive.value = false
+  if ((event.target as Element | null)?.closest('.chat-input')) return
+  if (event.dataTransfer?.files.length) void chatInputRef.value?.addFiles(event.dataTransfer.files)
 }
 
 async function checkWebSearchSetup(matches: MatchedSkill[]): Promise<boolean> {
@@ -495,6 +732,10 @@ function suggestTaskAgentName(matches: MatchedSkill[]): string {
 .error-banner :deep(.el-alert) { border: 1px solid #f0d4d1; border-radius: 10px; background: #fff8f7; }
 .chat-layout { display: grid; grid-template-columns: 276px minmax(0, 1fr); gap: 14px; flex: 1; min-height: 0; height: 100%; }
 .chat-stage { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; overflow: hidden; border: 1px solid #e0e4eb; border-radius: 10px; background: #fff; box-shadow: 0 1px 3px rgba(31, 35, 60, .04); }
+.stage-drop-hint { position: absolute; inset: 12px; z-index: 12; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border: 1px dashed #6f8d86; border-radius: 9px; color: #3d665f; background: rgba(247, 250, 249, .97); pointer-events: none; }
+.stage-drop-hint .el-icon { margin-bottom: 4px; font-size: 28px; }
+.stage-drop-hint strong { font-size: 14px; font-weight: 680; }
+.stage-drop-hint span { color: #7b8d89; font-size: 10px; }
 @media (max-width: 1180px) { .chat-layout { grid-template-columns: 248px minmax(0, 1fr); } }
 @media (max-width: 960px) { .chat-page { height: auto; overflow: visible; } .chat-layout { grid-template-columns: 1fr; min-height: auto; height: auto; } .chat-stage { min-height: 640px; } }
 @media (max-width: 620px) { .chat-stage { min-height: 580px; border-radius: 8px; } }

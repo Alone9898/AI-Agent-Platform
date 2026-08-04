@@ -30,8 +30,12 @@ export class BochaProvider implements WebSearchProvider {
 
       const data: any = await response.json().catch(() => null);
       if (!response.ok || (typeof data?.code === 'number' && data.code !== 200)) {
+        const detail = String(data?.msg || data?.message || response.statusText).slice(0, 300);
+        if (response.status === 403 && /money|package quota|quota|余额|额度/i.test(detail)) {
+          throw new Error('博查账户余额或套餐额度不足，请充值、升级套餐或切换其他搜索服务商');
+        }
         throw new Error(
-          `博查搜索失败 (${response.status}): ${String(data?.msg || data?.message || response.statusText).slice(0, 300)}`,
+          `博查搜索失败 (${response.status}): ${detail}`,
         );
       }
 

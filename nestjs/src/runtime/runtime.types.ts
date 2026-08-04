@@ -3,6 +3,15 @@ export interface RuntimeHistoryMessage {
   content: string;
 }
 
+export interface RuntimeAttachment {
+  name: string;
+  mimeType: string;
+  size: number;
+  content: string;
+  characterCount: number;
+  truncated: boolean;
+}
+
 export interface AgentRuntimeRequest {
   userId: number;
   agentId: number;
@@ -10,6 +19,7 @@ export interface AgentRuntimeRequest {
   conversationId?: string;
   messages?: RuntimeHistoryMessage[];
   temporarySkillIds?: number[];
+  attachments?: RuntimeAttachment[];
 }
 
 export type RuntimeStepType = 'memory' | 'capability' | 'llm' | 'tool';

@@ -43,9 +43,11 @@
       <div class="section-heading">
         <div>
           <h2>快速开始</h2>
-          <p>选择一个已经准备好的助手。</p>
+          <p>选择目标，星曜会准备对应助手与所需能力。</p>
         </div>
-        <span v-if="!loading" class="section-count">{{ agents.length }} 个可用</span>
+        <span v-if="!loading" class="section-count">
+          {{ enabledPresetCount }}/{{ LOCAL_AGENT_PRESETS.length }} 已启用
+        </span>
       </div>
 
       <div v-if="loading" class="quick-grid" aria-busy="true">
@@ -56,33 +58,24 @@
 
       <div v-else class="quick-grid">
         <button
-          v-for="(agent, index) in quickAgents"
-          :key="agent.id"
+          v-for="(item, index) in presetCards"
+          :key="item.preset.key"
           type="button"
           class="quick-card"
-          @click="openAgent(agent.id)"
+          @click="launchPreset(item.preset)"
         >
           <span class="quick-icon" :class="`tone-${index + 1}`">
-            <el-icon><component :is="getAgentIcon(agent, index)" /></el-icon>
+            <el-icon><component :is="getPresetIcon(item.preset.key)" /></el-icon>
           </span>
           <span class="quick-copy">
-            <strong>{{ agent.name }}</strong>
-            <span>{{ agent.description || '开始一段新的任务' }}</span>
-          </span>
-          <el-icon class="quick-arrow"><ArrowRight /></el-icon>
-        </button>
-
-        <button
-          v-for="slot in emptyQuickSlots"
-          :key="`empty-${slot}`"
-          type="button"
-          class="quick-card empty-quick-card"
-          @click="router.push('/agents')"
-        >
-          <span class="quick-icon empty"><el-icon><Plus /></el-icon></span>
-          <span class="quick-copy">
-            <strong>添加新的助手</strong>
-            <span>配置一个适合当前任务的 Agent</span>
+            <span class="quick-title-row">
+              <strong>{{ item.preset.name }}</strong>
+              <small :class="{ enabled: item.agent }">{{ item.agent ? '已启用' : '可添加' }}</small>
+            </span>
+            <span>{{ item.preset.description }}</span>
+            <span class="quick-capabilities">
+              {{ item.preset.capabilities.slice(0, 3).join(' · ') }}
+            </span>
           </span>
           <el-icon class="quick-arrow"><ArrowRight /></el-icon>
         </button>
@@ -119,7 +112,7 @@
           </div>
         </div>
 
-        <button v-if="recentTask" type="button" class="recent-task" @click="openAgent(recentTask.agent.id)">
+        <button v-if="recentTask" type="button" class="recent-task" @click="openConversation(recentTask.id, recentTask.agent.id)">
           <span class="recent-icon"><el-icon><Clock /></el-icon></span>
           <span class="recent-copy">
             <strong>{{ recentTask.title }}</strong>
@@ -132,6 +125,74 @@
         </div>
       </section>
     </div>
+
+    <el-dialog
+      v-model="presetDialogVisible"
+      :title="selectedPreset ? `启用${selectedPreset.name}` : '启用助手'"
+      width="480px"
+      destroy-on-close
+    >
+      <div v-if="selectedPreset" class="preset-dialog-intro">
+        <span class="preset-dialog-icon">
+          <el-icon><component :is="getPresetIcon(selectedPreset.key)" /></el-icon>
+        </span>
+        <div>
+          <h3>{{ selectedPreset.name }}</h3>
+          <p>{{ selectedPreset.description }}</p>
+        </div>
+      </div>
+      <el-form label-position="top" class="preset-form">
+        <el-form-item label="使用模型">
+          <el-select v-model="presetModelId" placeholder="选择一个已配置的模型" style="width: 100%">
+            <el-option
+              v-for="model in models"
+              :key="model.id"
+              :label="model.name"
+              :value="model.id"
+            />
+          </el-select>
+        </el-form-item>
+        <div class="preset-tools">
+          <span>将添加能力</span>
+          <strong>{{ getPresetToolSummary(selectedPreset) }}</strong>
+        </div>
+        <el-alert
+          v-if="selectedPreset?.setupNotice"
+          :title="selectedPreset.setupNotice"
+          type="info"
+          :closable="false"
+          show-icon
+          class="preset-notice"
+        />
+        <el-alert
+          v-if="selectedPresetNeedsWebSearch"
+          :title="webSearchConfig.configured
+            ? `已配置 ${webSearchProviderName}，可以获取实时信息`
+            : '需要先在系统设置中选择联网搜索服务'"
+          :type="webSearchConfig.configured ? 'success' : 'warning'"
+          :closable="false"
+          show-icon
+        />
+      </el-form>
+      <template #footer>
+        <el-button @click="presetDialogVisible = false">取消</el-button>
+        <el-button
+          v-if="selectedPresetNeedsWebSearch && !webSearchConfig.configured"
+          @click="goToSearchSettings"
+        >
+          配置联网搜索
+        </el-button>
+        <el-button
+          v-else
+          type="primary"
+          :loading="presetCreating"
+          :disabled="!presetModelId"
+          @click="createSelectedPreset"
+        >
+          确认添加并开始
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -142,30 +203,51 @@ import { ElMessage } from 'element-plus'
 import {
   ArrowRight,
   Clock,
+  Cpu,
   DataAnalysis,
   Document,
   EditPen,
   Link,
-  Monitor,
-  Plus,
+  Location,
   Promotion,
   Search,
   Setting,
+  ShoppingCart,
 } from '@element-plus/icons-vue'
-import { agentApi } from '@/api'
+import { agentApi, chatApi, modelApi, toolSettingsApi } from '@/api'
 import { useAuthStore } from '@/stores'
+import {
+  getPresetToolSummary,
+  LOCAL_AGENT_PRESETS,
+  presetRequiresWebSearch,
+  type LocalAgentPreset,
+} from '@/presets/agent-presets'
+import {
+  createAgentFromPreset,
+  findPresetAgent,
+  rememberPresetAgent,
+} from '@/services/agent-preset'
 
-interface StoredMessage {
-  role: 'user' | 'assistant'
-  content: string
-  createdAt: number
+interface RecentConversation {
+  id: string
+  title: string
+  agentId: number
+  updatedAt: string
+  agent: { id: number; name: string }
 }
 
 const router = useRouter()
 const authStore = useAuthStore()
 const agents = ref<any[]>([])
+const recentConversation = ref<RecentConversation | null>(null)
 const loading = ref(false)
 const demand = ref('')
+const models = ref<any[]>([])
+const selectedPreset = ref<LocalAgentPreset | null>(null)
+const presetDialogVisible = ref(false)
+const presetModelId = ref<number | null>(null)
+const presetCreating = ref(false)
+const webSearchConfig = ref({ provider: null as string | null, configured: false })
 
 const ACTIVE_AGENT_KEY = 'chat:active-agent-id'
 const promptExamples = ['总结一个网页', '查今天的 AI 新闻', '写一篇产品介绍']
@@ -176,18 +258,28 @@ const welcomeText = computed(() => {
 })
 
 const recentAgent = computed(() => {
+  if (recentConversation.value) {
+    return agents.value.find((agent) => agent.id === recentConversation.value?.agentId) || null
+  }
   const id = Number(localStorage.getItem(ACTIVE_AGENT_KEY))
   return Number.isFinite(id) ? agents.value.find((agent) => agent.id === id) || null : null
 })
 
-const quickAgents = computed(() => {
-  const recentId = recentAgent.value?.id
-  return [...agents.value]
-    .sort((a, b) => Number(b.id === recentId) - Number(a.id === recentId))
-    .slice(0, 3)
-})
-
-const emptyQuickSlots = computed(() => Math.max(0, 3 - quickAgents.value.length))
+const presetCards = computed(() => LOCAL_AGENT_PRESETS.map((preset) => ({
+  preset,
+  agent: findPresetAgent(preset, agents.value),
+})))
+const enabledPresetCount = computed(() => presetCards.value.filter((item) => item.agent).length)
+const selectedPresetNeedsWebSearch = computed(() => presetRequiresWebSearch(selectedPreset.value))
+const webSearchProviderName = computed(() => ({
+  exa_mcp: 'Exa MCP',
+  bing: 'Bing 公共搜索',
+  duckduckgo: 'DuckDuckGo',
+  bocha: '博查 Web Search',
+  tavily: 'Tavily',
+  serpapi: 'SerpAPI',
+  searxng: 'SearXNG',
+}[webSearchConfig.value.provider || ''] || '联网搜索'))
 
 const capabilities = computed(() => {
   const result: string[] = []
@@ -206,17 +298,11 @@ const capabilities = computed(() => {
 })
 
 const recentTask = computed(() => {
-  const agent = recentAgent.value
-  if (!agent) return null
-  const messages = loadMessages(agent.id)
-  const lastMessage = [...messages].reverse().find((message) => message.role === 'user')
-    || messages[messages.length - 1]
-  if (!lastMessage) return null
-  return {
-    agent,
-    title: truncate(lastMessage.content, 42),
-    updatedAt: lastMessage.createdAt,
-  }
+  const conversation = recentConversation.value
+  const agent = conversation
+    ? agents.value.find((item) => item.id === conversation.agentId) || conversation.agent
+    : null
+  return conversation && agent ? { ...conversation, agent } : null
 })
 
 onMounted(loadAgents)
@@ -226,6 +312,12 @@ async function loadAgents() {
   try {
     const { data } = await agentApi.findAll()
     agents.value = Array.isArray(data) ? data : []
+    try {
+      const { data: conversations } = await chatApi.findConversations({ limit: 1 })
+      recentConversation.value = Array.isArray(conversations) ? conversations[0] || null : null
+    } catch {
+      recentConversation.value = null
+    }
   } catch {
     ElMessage.error('加载助手失败，请稍后重试')
   } finally {
@@ -257,13 +349,71 @@ function openAgent(id: number, sendDraft = false) {
   })
 }
 
-function loadMessages(agentId: number): StoredMessage[] {
-  try {
-    const value = JSON.parse(localStorage.getItem(`chat:messages:${agentId}`) || '[]')
-    return Array.isArray(value) ? value.filter((message) => message?.content && message?.createdAt) : []
-  } catch {
-    return []
+async function launchPreset(preset: LocalAgentPreset) {
+  const agent = findPresetAgent(preset, agents.value)
+  if (agent) {
+    rememberPresetAgent(preset, agent.id)
+    openAgent(agent.id)
+    return
   }
+
+  selectedPreset.value = preset
+  try {
+    const { data: modelItems } = await modelApi.findAll()
+    models.value = Array.isArray(modelItems) ? modelItems : []
+    if (!models.value.length) {
+      ElMessage.warning('请先添加一个可用模型')
+      router.push('/models')
+      return
+    }
+    if (presetRequiresWebSearch(preset)) {
+      try {
+        const { data: searchConfig } = await toolSettingsApi.getWebSearch()
+        webSearchConfig.value = searchConfig
+      } catch {
+        webSearchConfig.value = { provider: null, configured: false }
+      }
+    }
+    presetModelId.value = models.value.find((model: any) => model.hasApiKey)?.id
+      || models.value[0]?.id
+      || null
+    presetDialogVisible.value = true
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message || '读取助手配置失败')
+  }
+}
+
+async function createSelectedPreset() {
+  const preset = selectedPreset.value
+  const modelId = presetModelId.value
+  if (!preset || !modelId || presetCreating.value) return
+  if (presetRequiresWebSearch(preset) && !webSearchConfig.value.configured) {
+    goToSearchSettings()
+    return
+  }
+
+  presetCreating.value = true
+  try {
+    const createdAgent = await createAgentFromPreset(preset, modelId)
+    await loadAgents()
+    presetDialogVisible.value = false
+    ElMessage.success(`${preset.name}已准备好`)
+    openAgent(createdAgent.id)
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.message || error?.message || `${preset.name}创建失败`)
+  } finally {
+    presetCreating.value = false
+  }
+}
+
+function goToSearchSettings() {
+  presetDialogVisible.value = false
+  router.push('/settings')
+}
+
+function openConversation(conversationId: string, agentId: number) {
+  localStorage.setItem(ACTIVE_AGENT_KEY, String(agentId))
+  router.push({ path: '/chat', query: { agentId: String(agentId), conversationId } })
 }
 
 function parseToolNames(raw: unknown): string[] {
@@ -291,12 +441,13 @@ function getToolLabel(name: string): string {
   return name.replace(/[_-]+/g, ' ')
 }
 
-function getAgentIcon(agent: any, index: number) {
-  const value = `${agent?.name || ''} ${agent?.description || ''}`.toLowerCase()
-  if (value.includes('热点') || value.includes('新闻') || value.includes('搜索')) return Search
-  if (value.includes('写作') || value.includes('文案')) return EditPen
-  if (value.includes('编程') || value.includes('代码')) return Monitor
-  return [Search, EditPen, Monitor][index % 3]
+function getPresetIcon(key: string) {
+  if (key === 'ai-intelligence') return Cpu
+  if (key === 'content-topic-radar') return EditPen
+  if (key === 'document-organizer') return Document
+  if (key === 'purchase-comparison') return ShoppingCart
+  if (key === 'travel-planner') return Location
+  return Search
 }
 
 function getCapabilityIcon(label: string) {
@@ -306,13 +457,9 @@ function getCapabilityIcon(label: string) {
   return Document
 }
 
-function truncate(value: string, maxLength: number): string {
-  const text = value.trim().replace(/\s+/g, ' ')
-  return text.length > maxLength ? `${text.slice(0, maxLength)}…` : text
-}
-
-function formatRelativeTime(timestamp: number): string {
-  const elapsed = Date.now() - timestamp
+function formatRelativeTime(value: string): string {
+  const timestamp = new Date(value).getTime()
+  const elapsed = Number.isFinite(timestamp) ? Math.max(0, Date.now() - timestamp) : 0
   const minutes = Math.max(1, Math.floor(elapsed / 60000))
   if (minutes < 60) return `${minutes} 分钟前`
   const hours = Math.floor(minutes / 60)
@@ -465,7 +612,7 @@ function formatRelativeTime(timestamp: number): string {
 }
 
 .quick-card {
-  min-height: 112px;
+  min-height: 136px;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
@@ -531,13 +678,44 @@ function formatRelativeTime(timestamp: number): string {
   white-space: nowrap;
 }
 
-.quick-copy span {
+.quick-copy > span:not(.quick-title-row) {
   overflow: hidden;
   color: #8a969e;
   font-size: 11px;
   line-height: 1.5;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.quick-title-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.quick-title-row strong {
+  min-width: 0;
+}
+
+.quick-title-row small {
+  flex: 0 0 auto;
+  padding: 2px 5px;
+  border-radius: 4px;
+  color: #8b949a;
+  font-size: 9px;
+  font-weight: 600;
+  background: #f0f2f3;
+}
+
+.quick-title-row small.enabled {
+  color: #356e69;
+  background: #e6f1ef;
+}
+
+.quick-copy > .quick-capabilities {
+  color: #6f7f87;
+  font-size: 10px;
 }
 
 .quick-arrow {
@@ -688,6 +866,64 @@ function formatRelativeTime(timestamp: number): string {
   border: 1px dashed #d7dfe1;
   border-radius: 8px;
   background: #fafbfb;
+}
+
+.preset-dialog-intro {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.preset-dialog-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #356e69;
+  background: #e6f1ef;
+  font-size: 18px;
+}
+
+.preset-dialog-intro h3 {
+  margin: 0 0 5px;
+  color: #2b3740;
+  font-size: 15px;
+}
+
+.preset-dialog-intro p {
+  margin: 0;
+  color: #7c8992;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.preset-form {
+  padding-top: 18px;
+  border-top: 1px solid #e4e8e9;
+}
+
+.preset-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 2px 0 16px;
+  color: #8b959b;
+  font-size: 11px;
+}
+
+.preset-tools strong {
+  color: #596872;
+  font-weight: 600;
+  text-align: right;
+}
+
+.preset-notice {
+  margin-bottom: 10px;
 }
 
 @media (max-width: 980px) {

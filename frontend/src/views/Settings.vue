@@ -37,7 +37,7 @@
           <el-icon class="card-icon" :size="20"><Search /></el-icon>
           <div class="card-heading">
             <h3 class="card-title">联网搜索</h3>
-            <span class="card-subtitle">由用户选择服务商，凭据仅保存在本机</span>
+            <span class="card-subtitle">支持免密钥公共通道、用户自带 Key 和自建服务</span>
           </div>
           <el-tag
             class="config-status"
@@ -65,7 +65,7 @@
                   >
                     <div class="provider-option">
                       <span>{{ provider.name }}</span>
-                      <small>{{ provider.region }}</small>
+                      <small>{{ getProviderModeLabel(provider.accessMode) }} · {{ provider.region }}</small>
                     </div>
                   </el-option>
                 </el-select>
@@ -101,13 +101,13 @@
                 <span>{{ selectedSearchProvider.description }}</span>
               </div>
               <a :href="selectedSearchProvider.apiKeyUrl" target="_blank" rel="noreferrer">
-                {{ selectedSearchProvider.key === 'searxng' ? '部署文档' : '获取 API Key' }}
+                {{ getProviderLinkLabel(selectedSearchProvider) }}
               </a>
             </div>
 
             <el-alert
-              title="API Key 会在本机加密保存，不上传星曜云端，也不会写入 Agent 或 Skill。"
-              type="info"
+              :title="searchProviderNotice"
+              :type="selectedSearchProvider?.accessMode === 'public' ? 'warning' : 'info'"
               :closable="false"
               show-icon
             />
@@ -215,6 +215,7 @@ interface WebSearchProvider {
   name: string
   description: string
   region: string
+  accessMode: 'public' | 'byok' | 'self-hosted'
   requiresApiKey: boolean
   requiresBaseUrl: boolean
   apiKeyUrl: string
@@ -257,6 +258,15 @@ const savingWebSearch = ref(false)
 const selectedSearchProvider = computed(() =>
   webSearchProviders.value.find((provider) => provider.key === webSearchForm.value.provider) || null,
 )
+const searchProviderNotice = computed(() => {
+  if (selectedSearchProvider.value?.accessMode === 'public') {
+    return '免密钥公共通道会把搜索词发送给对应服务，可能受到匿名额度、限流和网络可用性影响。'
+  }
+  if (selectedSearchProvider.value?.accessMode === 'self-hosted') {
+    return '自建服务地址和可选访问令牌仅保存在本机，不会同步到星曜云端。'
+  }
+  return 'API Key 会在本机加密保存，不上传星曜云端，也不会写入 Agent 或 Skill。'
+})
 
 onMounted(async () => {
   try {
@@ -297,6 +307,18 @@ function handleSearchProviderChange(provider: string) {
   webSearchForm.value.apiKey = ''
   webSearchForm.value.baseUrl =
     webSearchConfig.value.provider === provider ? webSearchConfig.value.baseUrl || '' : ''
+}
+
+function getProviderModeLabel(mode: WebSearchProvider['accessMode']): string {
+  if (mode === 'public') return '免密钥'
+  if (mode === 'self-hosted') return '自建'
+  return '自带 Key'
+}
+
+function getProviderLinkLabel(provider: WebSearchProvider): string {
+  if (provider.requiresBaseUrl) return '部署文档'
+  if (provider.requiresApiKey) return '获取 API Key'
+  return '了解服务'
 }
 
 async function saveWebSearchConfig() {

@@ -23,7 +23,28 @@
               <span class="message-role">{{ message.role === 'assistant' ? '星曜助手' : '我' }}</span>
               <span>{{ formatTime(message.createdAt) }}</span>
             </div>
-            <div class="message-content">{{ message.content }}</div>
+            <div
+              v-if="message.role === 'assistant'"
+              class="message-content markdown-body"
+              v-html="renderMarkdown(message.content)"
+            ></div>
+            <div v-else class="message-content user-content">{{ message.content }}</div>
+            <div v-if="message.role === 'user' && message.attachments?.length" class="message-attachments">
+              <div
+                v-for="(attachment, index) in message.attachments"
+                :key="`${message.id}-${attachment.name}-${index}`"
+                class="message-attachment"
+              >
+                <el-icon><Document /></el-icon>
+                <span>
+                  <strong :title="attachment.name">{{ attachment.name }}</strong>
+                  <small>
+                    {{ formatFileSize(attachment.size) }} · {{ formatCharacters(attachment.characterCount) }}
+                    <template v-if="attachment.truncated"> · 已截断</template>
+                  </small>
+                </span>
+              </div>
+            </div>
             <div v-if="message.role === 'assistant' && message.steps?.length" class="runtime-steps">
               <div class="steps-heading"><span>处理过程</span><span>{{ message.steps.length }} 个步骤</span></div>
               <div v-for="(step, index) in message.steps" :key="`${message.id}-${index}`" class="runtime-step">
@@ -62,10 +83,13 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import { ArrowRight, ChatDotRound, CircleCheck, Cpu, Loading, User, Warning } from '@element-plus/icons-vue'
+import { ArrowRight, ChatDotRound, CircleCheck, Cpu, Document, Loading, User, Warning } from '@element-plus/icons-vue'
+import DOMPurify from 'dompurify'
+import { marked } from 'marked'
+import type { ChatAttachmentMetadata } from '@/types/chat-attachment'
 
 interface ChatStep { type: 'memory' | 'capability' | 'llm' | 'tool'; name: string; status: 'completed' | 'failed'; durationMs: number; error?: string }
-const props = defineProps<{ agent: any | null; messages: Array<{ id: string; role: 'user' | 'assistant'; content: string; createdAt: number; steps?: ChatStep[] }>; loading?: boolean; sending?: boolean; activityLabel?: string; starterPrompts?: string[] }>()
+const props = defineProps<{ agent: any | null; messages: Array<{ id: string; role: 'user' | 'assistant'; content: string; createdAt: number; steps?: ChatStep[]; attachments?: ChatAttachmentMetadata[] }>; loading?: boolean; sending?: boolean; activityLabel?: string; starterPrompts?: string[] }>()
 const emit = defineEmits<{ (event: 'starter', prompt: string): void }>()
 const scrollRef = ref<HTMLElement | null>(null)
 const stickToBottom = ref(true)
@@ -95,6 +119,15 @@ function toolDescription(name: string): string { return toolLabel(name) }
 function formatStepName(step: ChatStep): string { if (step.type === 'tool') return `调用 ${toolLabel(step.name)}`; if (step.type === 'capability') return '已启用临时能力'; if (step.type === 'llm') return '整理回答'; if (step.type === 'memory') return '读取上下文'; return step.name }
 function formatDuration(value: number): string { return value ? (value < 1000 ? `${value} ms` : `${(value / 1000).toFixed(1)} s`) : '' }
 function formatTime(timestamp: number): string { return timestamp ? new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(new Date(timestamp)) : '' }
+function formatFileSize(bytes: number): string { if (bytes < 1024) return `${bytes} B`; if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`; return `${(bytes / 1024 / 1024).toFixed(1)} MB` }
+function formatCharacters(value: number): string { return value >= 10_000 ? `${(value / 10_000).toFixed(1)} 万字` : `${value} 字` }
+function renderMarkdown(content: string): string {
+  const html = marked.parse(content, { async: false, breaks: true, gfm: true }) as string
+  const safeHtml = DOMPurify.sanitize(html, {
+    FORBID_TAGS: ['audio', 'button', 'embed', 'form', 'iframe', 'img', 'input', 'object', 'style', 'video'],
+  })
+  return safeHtml.replace(/<a(?=\s)/g, '<a target="_blank" rel="noreferrer noopener"')
+}
 function scrollToBottom() { if (scrollRef.value) { scrollRef.value.scrollTop = scrollRef.value.scrollHeight; stickToBottom.value = true } }
 function handleScroll() { if (!scrollRef.value) return; const { scrollTop, scrollHeight, clientHeight } = scrollRef.value; stickToBottom.value = scrollHeight - clientHeight - scrollTop <= 48 }
 
@@ -120,11 +153,51 @@ defineExpose({ scrollToBottom })
 .message-avatar { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; flex: 0 0 auto; border-radius: 9px; color: #566d86; background: #e9eef4; font-size: 14px; }
 .message-row.user .message-avatar { color: #fff; background: #5e7088; }
 .message-bubble { max-width: min(760px, calc(100% - 50px)); padding: 12px 14px 13px; border: 1px solid #e4e8ed; border-radius: 5px 12px 12px 12px; color: #3b4657; background: #fff; box-shadow: 0 1px 2px rgba(33, 37, 61, .03); }
+.message-row.assistant .message-bubble { width: min(820px, calc(100% - 50px)); max-width: calc(100% - 50px); padding: 14px 17px 16px; }
 .message-row.user .message-bubble { border-color: transparent; border-radius: 12px 5px 12px 12px; color: #fff; background: #5e7088; }
 .message-meta { display: flex; justify-content: space-between; gap: 14px; margin-bottom: 7px; color: #9aa3af; font-size: 9px; }
 .message-role { color: #657184; font-weight: 650; }
 .message-row.user .message-meta, .message-row.user .message-role { color: rgba(255,255,255,.7); }
-.message-content { white-space: pre-wrap; line-height: 1.75; font-size: 13px; word-break: break-word; }
+.message-content { line-height: 1.75; font-size: 13px; word-break: break-word; }
+.user-content { white-space: pre-wrap; }
+.message-attachments { display: grid; gap: 6px; margin-top: 9px; }
+.message-attachment { min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid rgba(255,255,255,.18); border-radius: 7px; background: rgba(255,255,255,.08); }
+.message-attachment > .el-icon { color: rgba(255,255,255,.82); font-size: 15px; }
+.message-attachment > span { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.message-attachment strong { overflow: hidden; color: #fff; font-size: 10px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.message-attachment small { color: rgba(255,255,255,.66); font-size: 8px; }
+.markdown-body { overflow: hidden; color: #3b4657; font-variant-numeric: tabular-nums; }
+.markdown-body :deep(> :first-child) { margin-top: 0; }
+.markdown-body :deep(> :last-child) { margin-bottom: 0; }
+.markdown-body :deep(h1), .markdown-body :deep(h2), .markdown-body :deep(h3), .markdown-body :deep(h4) { color: #273443; line-height: 1.4; }
+.markdown-body :deep(h1) { margin: 2px 0 16px; font-size: 21px; font-weight: 720; }
+.markdown-body :deep(h2) { margin: 20px 0 11px; padding-bottom: 8px; border-bottom: 1px solid #e5e9ed; font-size: 17px; font-weight: 700; }
+.markdown-body :deep(h3) { margin: 17px 0 8px; font-size: 14px; font-weight: 700; }
+.markdown-body :deep(h4) { margin: 14px 0 7px; font-size: 13px; font-weight: 680; }
+.markdown-body :deep(p) { margin: 0 0 11px; }
+.markdown-body :deep(strong) { color: #263748; font-weight: 720; }
+.markdown-body :deep(ul), .markdown-body :deep(ol) { margin: 8px 0 12px; padding-left: 22px; }
+.markdown-body :deep(li) { margin: 4px 0; padding-left: 2px; }
+.markdown-body :deep(li::marker) { color: #7c8d9e; }
+.markdown-body :deep(blockquote) { margin: 12px 0; padding: 8px 12px; border-left: 3px solid #9eb2c4; color: #657486; background: #f6f8fa; }
+.markdown-body :deep(blockquote p) { margin: 0; }
+.markdown-body :deep(a) { color: #356f85; text-decoration: none; border-bottom: 1px solid rgba(53,111,133,.28); }
+.markdown-body :deep(a:hover) { color: #245a70; border-bottom-color: currentColor; }
+.markdown-body :deep(code) { padding: 2px 5px; border-radius: 4px; color: #9b4b3f; font-family: Consolas, 'Cascadia Code', monospace; font-size: .92em; background: #f3f4f6; }
+.markdown-body :deep(pre) { margin: 12px 0; padding: 12px 14px; overflow-x: auto; border: 1px solid #e0e5ea; border-radius: 7px; color: #dce5ed; background: #28343f; }
+.markdown-body :deep(pre code) { padding: 0; color: inherit; font-size: 11px; line-height: 1.65; background: transparent; }
+.markdown-body :deep(table) { display: block; width: 100%; margin: 12px 0 16px; overflow-x: auto; border: 1px solid #dfe5e9; border-spacing: 0; border-collapse: separate; border-radius: 7px; font-size: 11px; white-space: nowrap; }
+.markdown-body :deep(thead) { color: #526170; background: #f1f4f6; }
+.markdown-body :deep(th), .markdown-body :deep(td) { min-width: 74px; padding: 7px 10px; border-right: 1px solid #e5e9ec; border-bottom: 1px solid #e5e9ec; text-align: right; }
+.markdown-body :deep(th) { color: #445463; font-weight: 680; }
+.markdown-body :deep(th:first-child), .markdown-body :deep(td:first-child) { min-width: 78px; text-align: left; }
+.markdown-body :deep(th:last-child), .markdown-body :deep(td:last-child) { border-right: 0; }
+.markdown-body :deep(tbody tr:last-child td) { border-bottom: 0; }
+.markdown-body :deep(tbody tr:nth-child(even)) { background: #fafbfc; }
+.markdown-body :deep(tbody tr:hover) { background: #f4f7f8; }
+.markdown-body :deep(hr) { margin: 18px 0; border: 0; border-top: 1px solid #e1e6ea; }
+.markdown-body :deep(table::-webkit-scrollbar), .markdown-body :deep(pre::-webkit-scrollbar) { height: 7px; }
+.markdown-body :deep(table::-webkit-scrollbar-thumb), .markdown-body :deep(pre::-webkit-scrollbar-thumb) { border: 2px solid transparent; border-radius: 999px; background: rgba(95,112,136,.35); background-clip: padding-box; }
 .runtime-steps { margin-top: 12px; padding: 11px 12px; border: 1px solid #e3e9ef; border-radius: 8px; color: #657184; background: #fafcfd; }
 .steps-heading { display: flex; justify-content: space-between; color: #69798b; font-size: 10px; font-weight: 650; }
 .steps-heading span:last-child { color: #9ca7b3; font-weight: 500; }
@@ -151,5 +224,5 @@ defineExpose({ scrollToBottom })
 .message-list::-webkit-scrollbar { width: 7px; }
 .message-list::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: rgba(95, 112, 136, .32); background-clip: padding-box; }
 .message-list::-webkit-scrollbar-track { background: transparent; }
-@media (max-width: 620px) { .window-header { align-items: flex-start; padding: 14px 15px; } .capability-list { display: none; } .message-list { padding: 18px 14px; } .message-bubble { max-width: calc(100% - 44px); } }
+@media (max-width: 620px) { .window-header { align-items: flex-start; padding: 14px 15px; } .capability-list { display: none; } .message-list { padding: 18px 14px; } .message-bubble, .message-row.assistant .message-bubble { width: auto; max-width: calc(100% - 44px); padding: 12px 13px 14px; } .markdown-body :deep(h1) { font-size: 18px; } .markdown-body :deep(h2) { font-size: 16px; } }
 </style>

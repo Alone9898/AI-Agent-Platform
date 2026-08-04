@@ -93,11 +93,15 @@ export class ToolSettingsService {
       : canReuseApiKey
         ? existing.api_key_encrypted
         : null;
-    const baseUrl = provider === 'searxng' ? normalizeBaseUrl(input.baseUrl) : null;
+    const definition = getProviderDefinition(provider);
+    const baseUrl = definition.requiresBaseUrl ? normalizeBaseUrl(input.baseUrl) : null;
+    const storedApiKey = definition.requiresApiKey || provider === 'searxng'
+      ? apiKeyEncrypted
+      : null;
 
     assertCompleteConfig({
       provider,
-      apiKey: apiKeyEncrypted ? 'configured' : undefined,
+      apiKey: storedApiKey ? 'configured' : undefined,
       baseUrl: baseUrl || undefined,
     });
 
@@ -113,7 +117,7 @@ export class ToolSettingsService {
       WEB_SEARCH_SETTING_KEY,
       provider,
       baseUrl,
-      apiKeyEncrypted,
+      storedApiKey,
     );
     return this.getWebSearchConfig();
   }
@@ -160,8 +164,12 @@ export class ToolSettingsService {
     hasApiKey: boolean,
     source: 'local' | 'environment',
   ): WebSearchPublicConfig {
-    const configured =
-      provider === 'searxng' ? Boolean(baseUrl) : hasApiKey;
+    const definition = getProviderDefinition(provider);
+    const configured = definition.requiresBaseUrl
+      ? Boolean(baseUrl)
+      : definition.requiresApiKey
+        ? hasApiKey
+        : true;
     return { provider, baseUrl, hasApiKey, configured, source };
   }
 }
@@ -181,15 +189,22 @@ function normalizeBaseUrl(value?: string): string | null {
     if (!['http:', 'https:'].includes(url.protocol)) throw new Error();
     return url.toString().replace(/\/+$/, '');
   } catch {
-    throw new BadRequestException('SearXNG 地址必须是有效的 HTTP/HTTPS URL');
+    throw new BadRequestException('服务地址必须是有效的 HTTP/HTTPS URL');
   }
 }
 
 function assertCompleteConfig(config: WebSearchRuntimeConfig) {
-  if ((config.provider === 'bocha' || config.provider === 'tavily') && !config.apiKey) {
+  const definition = getProviderDefinition(config.provider);
+  if (definition.requiresApiKey && !config.apiKey) {
     throw new BadRequestException('所选搜索服务商需要 API Key');
   }
-  if (config.provider === 'searxng' && !config.baseUrl) {
-    throw new BadRequestException('SearXNG 需要填写服务地址');
+  if (definition.requiresBaseUrl && !config.baseUrl) {
+    throw new BadRequestException('所选搜索服务商需要填写服务地址');
   }
+}
+
+function getProviderDefinition(provider: WebSearchProviderKey) {
+  const definition = WEB_SEARCH_PROVIDERS.find((item) => item.key === provider);
+  if (!definition) throw new BadRequestException('不支持的联网搜索服务商');
+  return definition;
 }

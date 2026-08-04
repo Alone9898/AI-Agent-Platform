@@ -1,6 +1,15 @@
 <template>
   <div class="login-page">
     <section class="brand-panel">
+      <div class="brand-particles" aria-hidden="true">
+        <span
+          v-for="particle in brandParticles"
+          :key="particle.id"
+          class="brand-particle"
+          :style="particle.style"
+        ></span>
+      </div>
+
       <header class="brand-header">
         <div class="brand-logo">
           <img :src="logoMark" alt="星曜 Agent Platform" />
@@ -13,11 +22,11 @@
 
       <div class="brand-content">
         <h1>
-          把每个智能体，
-          <span>变成你的团队成员。</span>
+          让模型、工具与能力，
+          <span>在一个平台协同工作。</span>
         </h1>
         <p class="brand-description">
-          在一个本地工作台中，统一组织模型、技能与 Agent，搭建真正属于你的 AI 工作流。
+          统一连接模型与工具，按目标组合专属助手。权限由你确认，数据留在本机。
         </p>
 
         <div class="capability-grid">
@@ -26,8 +35,8 @@
               <el-icon><ChatDotRound /></el-icon>
             </div>
             <div>
-              <strong>Agent</strong>
-              <span>组建智能团队</span>
+              <strong>直接开始</strong>
+              <span>先说目标，不必先配置</span>
             </div>
           </div>
           <div class="capability-card">
@@ -35,8 +44,8 @@
               <el-icon><MagicStick /></el-icon>
             </div>
             <div>
-              <strong>Skill</strong>
-              <span>沉淀可复用能力</span>
+              <strong>按需启用</strong>
+              <span>能力使用前由你确认</span>
             </div>
           </div>
           <div class="capability-card">
@@ -44,15 +53,15 @@
               <el-icon><Cpu /></el-icon>
             </div>
             <div>
-              <strong>Model</strong>
-              <span>自由连接多种模型</span>
+              <strong>过程可见</strong>
+              <span>工具调用与结果可查看</span>
             </div>
           </div>
         </div>
       </div>
 
       <footer class="brand-footer">
-        本地部署，数据存储于当前设备
+        本地优先 · 凭据加密保存 · 对话记录留在当前设备
       </footer>
     </section>
 
@@ -66,8 +75,8 @@
         </div>
 
         <div class="login-header">
-          <h2>欢迎回来</h2>
-          <p>登录后管理你的智能体、技能与模型</p>
+          <h2>继续你的工作</h2>
+          <p>查看最近任务，或从一个新的目标开始</p>
         </div>
 
         <el-form
@@ -110,7 +119,7 @@
               :loading="loading"
               @click="handleLogin"
             >
-              <span>{{ loading ? '正在进入...' : '进入工作台' }}</span>
+              <span>{{ loading ? '正在登录...' : '进入星曜' }}</span>
               <el-icon v-if="!loading"><Right /></el-icon>
             </el-button>
           </el-form-item>
@@ -121,19 +130,19 @@
             <el-icon><Lock /></el-icon>
           </div>
           <div>
-            <span>首次使用默认管理员账号</span>
+            <span>首次启动可使用本机默认账户</span>
             <strong>admin&nbsp;&nbsp;/&nbsp;&nbsp;123456</strong>
           </div>
         </div>
       </div>
 
-      <footer class="login-footer">星曜 Agent Platform · 本地智能工作台</footer>
+      <footer class="login-footer">星曜 Agent Platform · 本地优先的 AI 工作台</footer>
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, type CSSProperties } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ChatDotRound, Cpu, Lock, MagicStick, Right, User } from '@element-plus/icons-vue'
@@ -145,6 +154,18 @@ const router = useRouter()
 const authStore = useAuthStore()
 const formRef = ref()
 const loading = ref(false)
+const brandParticles = Array.from({ length: 30 }, (_, index) => ({
+  id: index,
+  style: {
+    '--particle-x': `${(index * 37 + 11) % 100}%`,
+    '--particle-y': `${(index * 61 + 7) % 100}%`,
+    '--particle-size': `${index % 9 === 0 ? 3 : index % 3 === 0 ? 2 : 1}px`,
+    '--particle-opacity': `${0.22 + (index % 5) * 0.09}`,
+    '--particle-duration': `${8 + (index % 7) * 1.4}s`,
+    '--particle-delay': `${-(index % 11) * 0.8}s`,
+    '--particle-drift': `${index % 2 === 0 ? 10 : -8}px`,
+  } as CSSProperties,
+}))
 
 const form = reactive({
   username: '',
@@ -196,7 +217,36 @@ async function handleLogin() {
   flex-direction: column;
   overflow: hidden;
   color: #fff;
-  background: var(--brand-bg);
+  background:
+    radial-gradient(circle at 78% 22%, rgba(111, 174, 165, 0.1), transparent 30%),
+    var(--brand-bg);
+}
+
+.brand-particles {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.brand-particle {
+  position: absolute;
+  left: var(--particle-x);
+  top: var(--particle-y);
+  width: var(--particle-size);
+  height: var(--particle-size);
+  border-radius: 50%;
+  opacity: var(--particle-opacity);
+  background: #d7f0ec;
+  box-shadow: 0 0 7px rgba(156, 193, 188, 0.65);
+  animation: particle-drift var(--particle-duration) ease-in-out var(--particle-delay) infinite;
+  will-change: transform, opacity;
+}
+
+.brand-particle:nth-child(5n) {
+  background: #b9d8f3;
+  box-shadow: 0 0 8px rgba(127, 182, 255, 0.5);
 }
 
 .brand-header,
@@ -540,18 +590,34 @@ async function handleLogin() {
 @keyframes content-in {
   from {
     opacity: 0;
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
   }
 }
 
 @keyframes login-in {
   from {
     opacity: 0;
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes particle-drift {
+  0%,
+  100% {
+    opacity: calc(var(--particle-opacity) * 0.65);
+    transform: translate3d(0, 10px, 0) scale(0.85);
+  }
+  50% {
+    opacity: var(--particle-opacity);
+    transform: translate3d(var(--particle-drift), -14px, 0) scale(1.15);
   }
 }
 
@@ -637,7 +703,8 @@ async function handleLogin() {
 
 @media (prefers-reduced-motion: reduce) {
   .brand-content,
-  .login-shell {
+  .login-shell,
+  .brand-particle {
     animation: none;
   }
 

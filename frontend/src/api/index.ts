@@ -166,6 +166,12 @@ export const modelApi = {
 }
 
 export const chatApi = {
+  findConversations: (params: { keyword?: string; agentId?: number; limit?: number } = {}) =>
+    api.get('/chat/conversations', { params }),
+  findConversation: (id: string) => api.get(`/chat/conversations/${id}`),
+  renameConversation: (id: string, title: string) =>
+    api.put(`/chat/conversations/${id}`, { title }),
+  removeConversation: (id: string) => api.delete(`/chat/conversations/${id}`),
   matchSkills: (data: { agentId: number; message: string; includeBoundSkills?: boolean }) =>
     api.post('/chat/match-skills', data),
   confirmSkills: (data: { requestId: string; skillIds: number[] }) =>
@@ -177,6 +183,14 @@ export const chatApi = {
     messages?: Array<{ role: 'user' | 'assistant'; content: string }>
     temporarySkillIds?: number[]
     skillConsentToken?: string
+    attachments?: Array<{
+      name: string
+      mimeType: string
+      size: number
+      content: string
+      characterCount: number
+      truncated: boolean
+    }>
   }) => api.post('/chat', data),
 }
 

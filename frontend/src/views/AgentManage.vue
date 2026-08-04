@@ -19,42 +19,45 @@
         <el-tag size="small" effect="plain">本地模板</el-tag>
       </div>
 
-      <article class="featured-agent">
-        <div class="preset-mark" aria-hidden="true">
-          <el-icon :size="24"><Search /></el-icon>
-        </div>
-        <div class="preset-copy">
-          <div class="preset-title-row">
-            <h4>{{ HOTSPOT_RADAR_PRESET.name }}</h4>
-            <el-tag size="small" type="success" effect="plain">官方</el-tag>
+      <div class="preset-grid">
+        <article v-for="item in presetAgents" :key="item.preset.key" class="featured-agent">
+          <div class="preset-mark" aria-hidden="true">
+            <el-icon :size="22"><component :is="getPresetIcon(item.preset.key)" /></el-icon>
           </div>
-          <p>{{ HOTSPOT_RADAR_PRESET.description }}</p>
-          <div class="preset-capabilities">
-            <span v-for="capability in HOTSPOT_RADAR_PRESET.capabilities" :key="capability">
-              {{ capability }}
-            </span>
+          <div class="preset-copy">
+            <div class="preset-title-row">
+              <h4>{{ item.preset.name }}</h4>
+              <el-tag v-if="item.agent" size="small" type="success" effect="plain">已启用</el-tag>
+              <el-tag v-else size="small" effect="plain">官方</el-tag>
+            </div>
+            <p>{{ item.preset.description }}</p>
+            <div class="preset-capabilities">
+              <span v-for="capability in item.preset.capabilities" :key="capability">
+                {{ capability }}
+              </span>
+            </div>
           </div>
-        </div>
-        <div class="preset-actions">
-          <el-button
-            v-if="hotspotAgent"
-            type="primary"
-            :icon="ArrowRight"
-            @click="openPresetAgent(hotspotAgent.id)"
-          >
-            开始对话
-          </el-button>
-          <el-button
-            v-else
-            type="primary"
-            :icon="Plus"
-            :loading="presetCreating"
-            @click="showPresetDialog"
-          >
-            添加到团队
-          </el-button>
-        </div>
-      </article>
+          <div class="preset-actions">
+            <el-button
+              v-if="item.agent"
+              type="primary"
+              :icon="ArrowRight"
+              @click="openPresetAgent(item.preset, item.agent.id)"
+            >
+              开始对话
+            </el-button>
+            <el-button
+              v-else
+              type="primary"
+              :icon="Plus"
+              :loading="presetCreating && selectedPreset?.key === item.preset.key"
+              @click="showPresetDialog(item.preset)"
+            >
+              添加到团队
+            </el-button>
+          </div>
+        </article>
+      </div>
     </section>
 
     <div class="library-heading">
@@ -140,27 +143,43 @@
       </div>
     </div>
 
-    <el-dialog v-model="presetDialogVisible" title="启用热点雷达" width="480px" destroy-on-close>
-      <div class="preset-dialog-intro">
-        <div class="preset-dialog-mark"><el-icon><Search /></el-icon></div>
+    <el-dialog
+      v-model="presetDialogVisible"
+      :title="selectedPreset ? `启用${selectedPreset.name}` : '启用助手'"
+      width="480px"
+      destroy-on-close
+    >
+      <div v-if="selectedPreset" class="preset-dialog-intro">
+        <div class="preset-dialog-mark">
+          <el-icon><component :is="getPresetIcon(selectedPreset.key)" /></el-icon>
+        </div>
         <div>
-          <h4>{{ HOTSPOT_RADAR_PRESET.name }}</h4>
-          <p>{{ HOTSPOT_RADAR_PRESET.description }}</p>
+          <h4>{{ selectedPreset.name }}</h4>
+          <p>{{ selectedPreset.description }}</p>
         </div>
       </div>
       <el-form label-position="top" class="dialog-form preset-form">
         <el-form-item label="选择模型">
-          <el-select v-model="presetModelId" placeholder="选择热点雷达使用的模型" style="width: 100%">
+          <el-select v-model="presetModelId" placeholder="选择助手使用的模型" style="width: 100%">
             <el-option v-for="model in modelStore.models" :key="model.id" :label="model.name" :value="model.id" />
           </el-select>
         </el-form-item>
         <div class="required-tools">
           <span class="required-tools-label">自动配置</span>
-          <span>时间、联网搜索、网页读取、HTTP 请求</span>
+          <span>{{ getPresetToolSummary(selectedPreset) }}</span>
         </div>
         <el-alert
+          v-if="selectedPreset?.setupNotice"
+          :title="selectedPreset.setupNotice"
+          type="info"
+          :closable="false"
+          show-icon
+          class="preset-notice"
+        />
+        <el-alert
+          v-if="selectedPresetNeedsWebSearch"
           :title="webSearchConfig.configured
-            ? `已配置 ${webSearchProviderName}，热点雷达可以使用联网搜索`
+            ? `已配置 ${webSearchProviderName}，助手可以使用联网搜索`
             : '请先在系统设置中配置联网搜索服务'"
           :type="webSearchConfig.configured ? 'success' : 'warning'"
           :closable="false"
@@ -169,14 +188,17 @@
       </el-form>
       <template #footer>
         <el-button @click="presetDialogVisible = false">取消</el-button>
-        <el-button v-if="!webSearchConfig.configured" @click="goToSearchSettings">
+        <el-button
+          v-if="selectedPresetNeedsWebSearch && !webSearchConfig.configured"
+          @click="goToSearchSettings"
+        >
           配置联网搜索
         </el-button>
         <el-button
           type="primary"
           :loading="presetCreating"
-          :disabled="!webSearchConfig.configured"
-          @click="createHotspotRadar"
+          :disabled="selectedPresetNeedsWebSearch && !webSearchConfig.configured"
+          @click="createSelectedPreset"
         >
           添加并开始对话
         </el-button>
@@ -237,9 +259,34 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Plus, Edit, Delete, Link, Cpu, MagicStick, ChatLineSquare, Search, ArrowRight } from '@element-plus/icons-vue'
+import {
+  ArrowRight,
+  ChatLineSquare,
+  Cpu,
+  Delete,
+  Document,
+  Edit,
+  EditPen,
+  Link,
+  Location,
+  MagicStick,
+  Plus,
+  Search,
+  ShoppingCart,
+} from '@element-plus/icons-vue'
 import { useAgentStore, useSkillStore, useModelStore } from '@/stores'
-import { agentPresetStorageKey, HOTSPOT_RADAR_PRESET } from '@/presets/agent-presets'
+import {
+  getPresetToolSummary,
+  LOCAL_AGENT_PRESETS,
+  presetRequiresWebSearch,
+  type LocalAgentPreset,
+} from '@/presets/agent-presets'
+import {
+  createAgentFromPreset,
+  findPresetAgent,
+  forgetPresetAgent,
+  rememberPresetAgent,
+} from '@/services/agent-preset'
 import { toolSettingsApi } from '@/api'
 
 const router = useRouter()
@@ -255,25 +302,28 @@ const currentAgent = ref<any>(null)
 const presetDialogVisible = ref(false)
 const presetModelId = ref<number | null>(null)
 const presetCreating = ref(false)
+const selectedPreset = ref<LocalAgentPreset | null>(null)
 const webSearchConfig = ref({
   provider: null as string | null,
   configured: false,
 })
 const webSearchProviderName = computed(() => ({
+  exa_mcp: 'Exa MCP',
+  bing: 'Bing 公共搜索',
+  duckduckgo: 'DuckDuckGo',
   bocha: '博查 Web Search',
   tavily: 'Tavily',
+  serpapi: 'SerpAPI',
   searxng: 'SearXNG',
 }[webSearchConfig.value.provider || ''] || '联网搜索'))
 
 const form = ref({ name: '', description: '', systemPrompt: '' })
 const bindForm = ref({ modelId: null as number | null, skillIds: [] as number[] })
-const hotspotAgent = computed(() => {
-  const storedId = Number(localStorage.getItem(agentPresetStorageKey(HOTSPOT_RADAR_PRESET.key)))
-  const storedAgent = Number.isFinite(storedId)
-    ? agentStore.agents.find((agent) => agent.id === storedId)
-    : null
-  return storedAgent || agentStore.agents.find((agent) => agent.name === HOTSPOT_RADAR_PRESET.name) || null
-})
+const presetAgents = computed(() => LOCAL_AGENT_PRESETS.map((preset) => ({
+  preset,
+  agent: findPresetAgent(preset, agentStore.agents),
+})))
+const selectedPresetNeedsWebSearch = computed(() => presetRequiresWebSearch(selectedPreset.value))
 
 // 根据 id 生成稳定的彩色值
 const COLORS = [
@@ -311,11 +361,13 @@ onMounted(async () => {
   ])
 })
 
-async function showPresetDialog() {
-  if (hotspotAgent.value) {
-    openPresetAgent(hotspotAgent.value.id)
+async function showPresetDialog(preset: LocalAgentPreset) {
+  const existingAgent = findPresetAgent(preset, agentStore.agents)
+  if (existingAgent) {
+    openPresetAgent(preset, existingAgent.id)
     return
   }
+  selectedPreset.value = preset
   if (modelStore.models.length === 0) {
     ElMessage.warning('请先添加一个可用模型')
     router.push('/models')
@@ -324,7 +376,7 @@ async function showPresetDialog() {
   presetModelId.value = modelStore.models.find((model: any) => model.hasApiKey)?.id
     || modelStore.models[0]?.id
     || null
-  await refreshWebSearchConfig()
+  if (presetRequiresWebSearch(preset)) await refreshWebSearchConfig()
   presetDialogVisible.value = true
 }
 
@@ -342,47 +394,24 @@ function goToSearchSettings() {
   router.push('/settings')
 }
 
-function openPresetAgent(agentId: number) {
-  localStorage.setItem(agentPresetStorageKey(HOTSPOT_RADAR_PRESET.key), String(agentId))
+function openPresetAgent(preset: LocalAgentPreset, agentId: number) {
+  rememberPresetAgent(preset, agentId)
   router.push({ path: '/chat', query: { agentId: String(agentId) } })
 }
 
-function getSkillToolNames(skill: any): string[] {
-  try {
-    const tools = JSON.parse(skill?.tools || '[]')
-    if (!Array.isArray(tools)) return []
-    return tools
-      .map((tool: any) => tool?.name)
-      .filter((name: unknown): name is string => typeof name === 'string')
-  } catch {
-    return []
-  }
+function getPresetIcon(key: string) {
+  if (key === 'ai-intelligence') return Cpu
+  if (key === 'content-topic-radar') return EditPen
+  if (key === 'document-organizer') return Document
+  if (key === 'purchase-comparison') return ShoppingCart
+  if (key === 'travel-planner') return Location
+  return Search
 }
 
-async function ensurePresetSkills(): Promise<number[]> {
-  await Promise.all([skillStore.fetchSkills(), skillStore.fetchPresets()])
-  const skillIds: number[] = []
-
-  for (const requirement of HOTSPOT_RADAR_PRESET.requiredSkills) {
-    let skill = skillStore.skills.find((item: any) =>
-      getSkillToolNames(item).includes(requirement.toolName),
-    )
-
-    if (!skill) {
-      const preset = skillStore.presets.find((item: any) => item.key === requirement.presetKey)
-      if (!preset) {
-        throw new Error(`缺少工具模板：${requirement.toolName}`)
-      }
-      skill = await skillStore.importPreset(preset)
-    }
-    skillIds.push(skill.id)
-  }
-
-  return [...new Set(skillIds)]
-}
-
-async function createHotspotRadar() {
-  if (!webSearchConfig.value.configured) {
+async function createSelectedPreset() {
+  const preset = selectedPreset.value
+  if (!preset) return
+  if (presetRequiresWebSearch(preset) && !webSearchConfig.value.configured) {
     ElMessage.warning('请先配置联网搜索服务')
     goToSearchSettings()
     return
@@ -393,32 +422,18 @@ async function createHotspotRadar() {
   }
 
   presetCreating.value = true
-  let createdAgent: any = null
   try {
-    const skillIds = await ensurePresetSkills()
-    createdAgent = await agentStore.createAgent({
-      name: HOTSPOT_RADAR_PRESET.name,
-      description: HOTSPOT_RADAR_PRESET.description,
-      systemPrompt: HOTSPOT_RADAR_PRESET.systemPrompt,
-    })
-    await agentStore.bindModel(createdAgent.id, presetModelId.value)
-    await agentStore.bindSkills(createdAgent.id, skillIds)
-    localStorage.setItem(
-      agentPresetStorageKey(HOTSPOT_RADAR_PRESET.key),
-      String(createdAgent.id),
-    )
+    const createdAgent = await createAgentFromPreset(preset, presetModelId.value)
+    await Promise.all([
+      agentStore.fetchAgents(),
+      skillStore.fetchSkills(),
+      skillStore.fetchPresets(),
+    ])
     presetDialogVisible.value = false
-    ElMessage.success('热点雷达已加入团队')
-    openPresetAgent(createdAgent.id)
+    ElMessage.success(`${preset.name}已加入团队`)
+    openPresetAgent(preset, createdAgent.id)
   } catch (error: any) {
-    if (createdAgent?.id) {
-      try {
-        await agentStore.deleteAgent(createdAgent.id)
-      } catch {
-        // Keep the original creation error visible to the user.
-      }
-    }
-    ElMessage.error(error?.response?.data?.message || error?.message || '热点雷达创建失败')
+    ElMessage.error(error?.response?.data?.message || error?.message || `${preset.name}创建失败`)
   } finally {
     presetCreating.value = false
   }
@@ -460,10 +475,7 @@ async function handleSave() {
 async function handleDelete(id: number) {
   try {
     await agentStore.deleteAgent(id)
-    const presetKey = agentPresetStorageKey(HOTSPOT_RADAR_PRESET.key)
-    if (localStorage.getItem(presetKey) === String(id)) {
-      localStorage.removeItem(presetKey)
-    }
+    forgetPresetAgent(id)
     ElMessage.success('已移除该成员')
   } catch {
     ElMessage.error('删除失败')
@@ -550,12 +562,18 @@ async function handleBind() {
   line-height: 1.5;
 }
 
+.preset-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
 .featured-agent {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 16px;
-  padding: 18px 20px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+  padding: 16px;
   border: 1px solid #e4e5eb;
   border-left: 3px solid #4d857f;
   border-radius: 10px;
@@ -634,7 +652,9 @@ async function handleBind() {
 
 .preset-actions {
   display: flex;
+  grid-column: 1 / -1;
   justify-content: flex-end;
+  padding-top: 2px;
 }
 
 .library-heading {
@@ -677,6 +697,10 @@ async function handleBind() {
 .required-tools-label {
   color: #3d4255;
   font-weight: 650;
+}
+
+.preset-notice {
+  margin-bottom: 10px;
 }
 
 /* ========== 卡片网格 ========== */
@@ -931,12 +955,12 @@ async function handleBind() {
 }
 
 @media (max-width: 960px) {
-  .featured-agent {
-    grid-template-columns: auto minmax(0, 1fr);
+  .preset-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .preset-actions {
-    grid-column: 2;
+    grid-column: 1 / -1;
     justify-content: flex-start;
   }
 }
@@ -961,7 +985,7 @@ async function handleBind() {
   }
 
   .preset-actions {
-    grid-column: 1;
+    grid-column: 1 / -1;
   }
 
   .preset-actions :deep(.el-button) {

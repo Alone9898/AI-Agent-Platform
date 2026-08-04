@@ -1,9 +1,14 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { PrismaService } from './prisma/prisma.service';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: false,
+  });
+  app.useBodyParser('json', { limit: '1mb' });
+  app.useBodyParser('urlencoded', { limit: '1mb', extended: true });
   app.enableCors();
 
   // Auto-migrate database schema on startup
@@ -71,6 +76,7 @@ async function bootstrap() {
       id TEXT PRIMARY KEY NOT NULL,
       user_id INTEGER NOT NULL,
       agent_id INTEGER NOT NULL,
+      title TEXT,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -82,6 +88,7 @@ async function bootstrap() {
       role TEXT NOT NULL,
       content TEXT NOT NULL,
       steps TEXT,
+      attachments TEXT,
       created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
     )`,
@@ -109,6 +116,8 @@ async function bootstrap() {
     `ALTER TABLE models ADD COLUMN api_key_value TEXT`,
     `ALTER TABLE skills ADD COLUMN type TEXT DEFAULT 'prompt'`,
     `ALTER TABLE skills ADD COLUMN tools TEXT`,
+    `ALTER TABLE conversations ADD COLUMN title TEXT`,
+    `ALTER TABLE conversation_messages ADD COLUMN attachments TEXT`,
   ];
   for (const sql of migrations) {
     try {
